@@ -5,7 +5,7 @@ services:
     region: frankfurt
     plan: free
     buildCommand: npm install && npm run build
-    startCommand: npm start
+    startCommand: node src/index.js
     envVars:
       - key: DATABASE_URL
         value: postgresql://postgres.lljicnlehbrbuvbgtqzo:Solisolisoli92!@aws-0-eu-central-1.pooler.supabase.com:6543/postgres
