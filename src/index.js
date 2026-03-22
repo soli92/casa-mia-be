@@ -5,14 +5,6 @@ import http from 'http';
 import cron from 'node-cron';
 import { prisma } from './utils/prisma.js';
 import { initWebSocket } from './websocket.js';
-import { authenticateToken } from './middleware/auth.js';
-
-// Routes
-import authRoutes from './routes/auth.js';
-import pantryRoutes from './routes/pantry.js';
-import shoppingRoutes from './routes/shopping.js';
-import recipeRoutes from './routes/recipes.js';
-import iotRoutes from './routes/iot.js';
 
 // Carica variabili d'ambiente
 dotenv.config();
@@ -27,6 +19,17 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Import routes
+import authRoutes from './routes/auth.js';
+import pantryRoutes from './routes/pantry.js';
+import shoppingRoutes from './routes/shopping.js';
+import recipeRoutes from './routes/recipes.js';
+import deadlineRoutes from './routes/deadlines.js';
+import iotRoutes from './routes/iot.js';
+
+// Import middleware
+import { authenticateToken } from './middleware/auth.js';
+
 // Routes pubbliche
 app.use('/api/auth', authRoutes);
 
@@ -34,6 +37,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/pantry', authenticateToken, pantryRoutes);
 app.use('/api/shopping', authenticateToken, shoppingRoutes);
 app.use('/api/recipes', authenticateToken, recipeRoutes);
+app.use('/api/deadlines', authenticateToken, deadlineRoutes);
 app.use('/api/iot', authenticateToken, iotRoutes);
 
 // Health check
@@ -42,7 +46,7 @@ app.get('/health', (req, res) => {
 });
 
 // Setup WebSocket
-const wss = initWebSocket(server);
+initWebSocket(server);
 
 // Cron job per notifiche scadenze (ogni giorno alle 9:00)
 cron.schedule('0 9 * * *', async () => {
@@ -55,15 +59,9 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server in ascolto su porta ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL}`);
 });
 
 // Gestione errori Prisma
 process.on('beforeExit', async () => {
   await prisma.$disconnect();
-});
-
-// Gestione errori non gestiti
-process.on('unhandledRejection', (err) => {
-  console.error('❌ Unhandled rejection:', err);
 });
