@@ -11,15 +11,6 @@ router.get('/', async (req, res) => {
     const deadlines = await prisma.deadline.findMany({
       where: { familyId },
       orderBy: { dueDate: 'asc' },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
     });
 
     res.json(deadlines);
@@ -29,94 +20,65 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/deadlines/upcoming - Scadenze imminenti (prossimi 7 giorni)
+// GET /api/deadlines/upcoming - Scadenze prossimi 7 giorni
 router.get('/upcoming', async (req, res) => {
   try {
     const { familyId } = req.user;
     const now = new Date();
-    const sevenDaysFromNow = new Date();
-    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+    const nextWeek = new Date();
+    nextWeek.setDate(now.getDate() + 7);
 
-    const upcomingDeadlines = await prisma.deadline.findMany({
+    const deadlines = await prisma.deadline.findMany({
       where: {
         familyId,
         dueDate: {
           gte: now,
-          lte: sevenDaysFromNow,
+          lte: nextWeek,
         },
         isPaid: false,
       },
       orderBy: { dueDate: 'asc' },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
     });
 
-    res.json(upcomingDeadlines);
+    res.json(deadlines);
   } catch (error) {
     console.error('Get upcoming deadlines error:', error);
     res.status(500).json({ error: 'Errore nel recupero delle scadenze imminenti' });
   }
 });
 
-// GET /api/deadlines/overdue - Scadenze scadute e non pagate
+// GET /api/deadlines/overdue - Scadenze scadute non pagate
 router.get('/overdue', async (req, res) => {
   try {
     const { familyId } = req.user;
     const now = new Date();
 
-    const overdueDeadlines = await prisma.deadline.findMany({
+    const deadlines = await prisma.deadline.findMany({
       where: {
         familyId,
-        dueDate: {
-          lt: now,
-        },
+        dueDate: { lt: now },
         isPaid: false,
       },
       orderBy: { dueDate: 'asc' },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
     });
 
-    res.json(overdueDeadlines);
+    res.json(deadlines);
   } catch (error) {
     console.error('Get overdue deadlines error:', error);
     res.status(500).json({ error: 'Errore nel recupero delle scadenze scadute' });
   }
 });
 
-// GET /api/deadlines/:id - Dettaglio scadenza
+// GET /api/deadlines/:id - Dettaglio singola scadenza
 router.get('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
     const { familyId } = req.user;
+    const { id } = req.params;
 
     const deadline = await prisma.deadline.findFirst({
       where: {
         id: parseInt(id),
         familyId,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
       },
     });
 
@@ -134,11 +96,11 @@ router.get('/:id', async (req, res) => {
 // POST /api/deadlines - Crea nuova scadenza
 router.post('/', async (req, res) => {
   try {
-    const { title, description, dueDate, amount, category, isRecurring, recurringPeriod } = req.body;
-    const { familyId, id: userId } = req.user;
+    const { familyId } = req.user;
+    const { title, description, dueDate, amount, category, isRecurring, recurringType } = req.body;
 
     if (!title || !dueDate) {
-      return res.status(400).json({ error: 'Titolo e data di scadenza sono obbligatori' });
+      return res.status(400).json({ error: 'Titolo e data scadenza obbligatori' });
     }
 
     const deadline = await prisma.deadline.create({
@@ -147,21 +109,11 @@ router.post('/', async (req, res) => {
         description,
         dueDate: new Date(dueDate),
         amount: amount ? parseFloat(amount) : null,
-        category: category || 'OTHER',
+        category: category || 'ALTRO',
         isRecurring: isRecurring || false,
-        recurringPeriod: recurringPeriod || null,
+        recurringType: recurringType || null,
         isPaid: false,
         familyId,
-        userId,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
       },
     });
 
@@ -175,11 +127,10 @@ router.post('/', async (req, res) => {
 // PATCH /api/deadlines/:id - Aggiorna scadenza
 router.patch('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
     const { familyId } = req.user;
-    const { title, description, dueDate, amount, category, isPaid, isRecurring, recurringPeriod } = req.body;
+    const { id } = req.params;
+    const { title, description, dueDate, amount, category, isPaid, isRecurring, recurringType } = req.body;
 
-    // Verifica che la scadenza appartenga alla famiglia
     const existing = await prisma.deadline.findFirst({
       where: {
         id: parseInt(id),
@@ -197,65 +148,35 @@ router.patch('/:id', async (req, res) => {
     if (dueDate !== undefined) updateData.dueDate = new Date(dueDate);
     if (amount !== undefined) updateData.amount = amount ? parseFloat(amount) : null;
     if (category !== undefined) updateData.category = category;
-    if (isPaid !== undefined) {
-      updateData.isPaid = isPaid;
-      if (isPaid) {
-        updateData.paidAt = new Date();
-      }
-    }
+    if (isPaid !== undefined) updateData.isPaid = isPaid;
     if (isRecurring !== undefined) updateData.isRecurring = isRecurring;
-    if (recurringPeriod !== undefined) updateData.recurringPeriod = recurringPeriod;
+    if (recurringType !== undefined) updateData.recurringType = recurringType;
 
-    const deadline = await prisma.deadline.update({
+    const updated = await prisma.deadline.update({
       where: { id: parseInt(id) },
       data: updateData,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
     });
 
     // Se è ricorrente e viene segnata come pagata, crea la prossima scadenza
-    if (isPaid && deadline.isRecurring && deadline.recurringPeriod) {
-      const nextDueDate = new Date(deadline.dueDate);
+    if (isPaid === true && existing.isRecurring && existing.recurringType) {
+      const nextDueDate = calculateNextDueDate(existing.dueDate, existing.recurringType);
       
-      switch (deadline.recurringPeriod) {
-        case 'WEEKLY':
-          nextDueDate.setDate(nextDueDate.getDate() + 7);
-          break;
-        case 'MONTHLY':
-          nextDueDate.setMonth(nextDueDate.getMonth() + 1);
-          break;
-        case 'QUARTERLY':
-          nextDueDate.setMonth(nextDueDate.getMonth() + 3);
-          break;
-        case 'YEARLY':
-          nextDueDate.setFullYear(nextDueDate.getFullYear() + 1);
-          break;
-      }
-
       await prisma.deadline.create({
         data: {
-          title: deadline.title,
-          description: deadline.description,
+          title: existing.title,
+          description: existing.description,
           dueDate: nextDueDate,
-          amount: deadline.amount,
-          category: deadline.category,
+          amount: existing.amount,
+          category: existing.category,
           isRecurring: true,
-          recurringPeriod: deadline.recurringPeriod,
+          recurringType: existing.recurringType,
           isPaid: false,
-          familyId: deadline.familyId,
-          userId: deadline.userId,
+          familyId,
         },
       });
     }
 
-    res.json(deadline);
+    res.json(updated);
   } catch (error) {
     console.error('Update deadline error:', error);
     res.status(500).json({ error: 'Errore nell\'aggiornamento della scadenza' });
@@ -265,10 +186,9 @@ router.patch('/:id', async (req, res) => {
 // DELETE /api/deadlines/:id - Elimina scadenza
 router.delete('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
     const { familyId } = req.user;
+    const { id } = req.params;
 
-    // Verifica che la scadenza appartenga alla famiglia
     const existing = await prisma.deadline.findFirst({
       where: {
         id: parseInt(id),
@@ -284,56 +204,47 @@ router.delete('/:id', async (req, res) => {
       where: { id: parseInt(id) },
     });
 
-    res.json({ message: 'Scadenza eliminata con successo' });
+    res.json({ message: 'Scadenza eliminata' });
   } catch (error) {
     console.error('Delete deadline error:', error);
     res.status(500).json({ error: 'Errore nell\'eliminazione della scadenza' });
   }
 });
 
-// GET /api/deadlines/stats/monthly - Statistiche mensili spese
+// GET /api/deadlines/stats/monthly - Statistiche mensili
 router.get('/stats/monthly', async (req, res) => {
   try {
     const { familyId } = req.user;
-    const { year, month } = req.query;
-
-    const startDate = new Date(year || new Date().getFullYear(), month ? month - 1 : 0, 1);
-    const endDate = new Date(startDate);
-    endDate.setMonth(endDate.getMonth() + (month ? 1 : 12));
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
     const deadlines = await prisma.deadline.findMany({
       where: {
         familyId,
         dueDate: {
-          gte: startDate,
-          lt: endDate,
+          gte: firstDayOfMonth,
+          lte: lastDayOfMonth,
         },
-        amount: {
-          not: null,
-        },
-      },
-      select: {
-        category: true,
-        amount: true,
-        isPaid: true,
       },
     });
 
-    // Raggruppa per categoria
-    const stats = deadlines.reduce((acc, deadline) => {
-      const cat = deadline.category || 'OTHER';
-      if (!acc[cat]) {
-        acc[cat] = { total: 0, paid: 0, unpaid: 0, count: 0 };
+    const stats = {
+      total: deadlines.length,
+      paid: deadlines.filter(d => d.isPaid).length,
+      unpaid: deadlines.filter(d => !d.isPaid).length,
+      totalAmount: deadlines.reduce((sum, d) => sum + (d.amount || 0), 0),
+      paidAmount: deadlines.filter(d => d.isPaid).reduce((sum, d) => sum + (d.amount || 0), 0),
+      byCategory: {},
+    };
+
+    deadlines.forEach(d => {
+      if (!stats.byCategory[d.category]) {
+        stats.byCategory[d.category] = { count: 0, amount: 0 };
       }
-      acc[cat].total += deadline.amount || 0;
-      acc[cat].count += 1;
-      if (deadline.isPaid) {
-        acc[cat].paid += deadline.amount || 0;
-      } else {
-        acc[cat].unpaid += deadline.amount || 0;
-      }
-      return acc;
-    }, {});
+      stats.byCategory[d.category].count++;
+      stats.byCategory[d.category].amount += d.amount || 0;
+    });
 
     res.json(stats);
   } catch (error) {
@@ -341,5 +252,32 @@ router.get('/stats/monthly', async (req, res) => {
     res.status(500).json({ error: 'Errore nel calcolo delle statistiche' });
   }
 });
+
+// Helper function per calcolare la prossima scadenza
+function calculateNextDueDate(currentDate, recurringType) {
+  const next = new Date(currentDate);
+  
+  switch (recurringType) {
+    case 'SETTIMANALE':
+      next.setDate(next.getDate() + 7);
+      break;
+    case 'MENSILE':
+      next.setMonth(next.getMonth() + 1);
+      break;
+    case 'TRIMESTRALE':
+      next.setMonth(next.getMonth() + 3);
+      break;
+    case 'SEMESTRALE':
+      next.setMonth(next.getMonth() + 6);
+      break;
+    case 'ANNUALE':
+      next.setFullYear(next.getFullYear() + 1);
+      break;
+    default:
+      next.setMonth(next.getMonth() + 1);
+  }
+  
+  return next;
+}
 
 export default router;
