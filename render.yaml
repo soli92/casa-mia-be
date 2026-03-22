@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: casa-mia-be
+    env: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://postgres.lljicnlehbrbuvbgtqzo:Solisolisoli92!@aws-0-eu-central-1.pooler.supabase.com:6543/postgres
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: FRONTEND_URL
+        value: https://casa-mia-fe.vercel.app
