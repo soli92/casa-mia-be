@@ -1,0 +1,227 @@
+// Schema Prisma per Casa Mia
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  MEMBER
+}
+
+enum ShoppingItemCategory {
+  FRUTTA
+  VERDURA
+  CARNE
+  PESCE
+  LATTICINI
+  PANE
+  PASTA
+  BEVANDE
+  SNACK
+  ALTRO
+}
+
+enum PantryItemStatus {
+  OK
+  EXPIRING_SOON
+  EXPIRED
+}
+
+enum DeadlineCategory {
+  BOLLETTE
+  TASSE
+  BOLLO_AUTO
+  ASSICURAZIONI
+  AFFITTO
+  ABBONAMENTI
+  ALTRO
+}
+
+enum IoTDeviceType {
+  LIGHT
+  THERMOSTAT
+  PLUG
+  SENSOR
+  CAMERA
+  OTHER
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(MEMBER)
+  familyId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  family            Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  shoppingItems     ShoppingItem[]
+  pantryItems       PantryItem[]
+  deadlines         Deadline[]
+  recipeViews       RecipeView[]
+  notificationPrefs NotificationPreference[]
+
+  @@index([familyId])
+}
+
+model Family {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         User[]
+  shoppingItems ShoppingItem[]
+  pantryItems   PantryItem[]
+  recipes       Recipe[]
+  deadlines     Deadline[]
+  iotDevices    IoTDevice[]
+}
+
+model ShoppingItem {
+  id          String               @id @default(cuid())
+  name        String
+  quantity    Int                  @default(1)
+  category    ShoppingItemCategory @default(ALTRO)
+  checked     Boolean              @default(false)
+  familyId    String
+  addedById   String
+  purchasedAt DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  family  Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  addedBy User   @relation(fields: [addedById], references: [id])
+
+  @@index([familyId])
+  @@index([addedById])
+}
+
+model PantryItem {
+  id             String            @id @default(cuid())
+  name           String
+  quantity       Float
+  unit           String            @default("pz")
+  category       ShoppingItemCategory @default(ALTRO)
+  expirationDate DateTime?
+  status         PantryItemStatus  @default(OK)
+  familyId       String
+  addedById      String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  family  Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  addedBy User   @relation(fields: [addedById], references: [id])
+
+  @@index([familyId])
+  @@index([status])
+  @@index([expirationDate])
+}
+
+model Recipe {
+  id          String   @id @default(cuid())
+  name        String
+  ingredients String[] // Array di ingredienti necessari
+  instructions String  @db.Text
+  prepTime    Int?     // Minuti
+  familyId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  family Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  views  RecipeView[]
+
+  @@index([familyId])
+}
+
+model RecipeView {
+  id        String   @id @default(cuid())
+  recipeId  String
+  userId    String
+  viewedAt  DateTime @default(now())
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([recipeId])
+  @@index([userId])
+}
+
+model Deadline {
+  id          String           @id @default(cuid())
+  title       String
+  description String?          @db.Text
+  dueDate     DateTime
+  category    DeadlineCategory @default(ALTRO)
+  amount      Float?
+  isPaid      Boolean          @default(false)
+  familyId    String
+  createdById String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  family    Family                   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy User                     @relation(fields: [createdById], references: [id])
+  notifications NotificationPreference[]
+
+  @@index([familyId])
+  @@index([dueDate])
+  @@index([category])
+}
+
+model NotificationPreference {
+  id         String @id @default(cuid())
+  deadlineId String
+  userId     String
+  daysBefore Int    @default(7)
+
+  deadline Deadline @relation(fields: [deadlineId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([deadlineId, userId])
+  @@index([deadlineId])
+  @@index([userId])
+}
+
+model IoTDevice {
+  id           String        @id @default(cuid())
+  name         String
+  type         IoTDeviceType
+  brand        String?
+  model        String?
+  status       String        @default("offline") // online, offline, error
+  lastPing     DateTime?
+  webhookUrl   String?
+  apiKey       String?
+  metadata     Json?         // Configurazione specifica del dispositivo
+  familyId     String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  family Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  events IoTEvent[]
+
+  @@index([familyId])
+  @@index([status])
+}
+
+model IoTEvent {
+  id         String   @id @default(cuid())
+  deviceId   String
+  eventType  String   // state_change, alert, error
+  payload    Json
+  createdAt  DateTime @default(now())
+
+  device IoTDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId])
+  @@index([createdAt])
+}
