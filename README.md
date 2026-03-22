@@ -39,6 +39,10 @@ PORT=3001
 FRONTEND_URL=http://localhost:3000
 ```
 
+## 🌐 Deploy
+
+Backend deployato su: https://casa-mia-be.onrender.com
+
 ## 🌐 API Endpoints
 
 ### Auth
