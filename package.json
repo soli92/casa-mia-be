@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Backend per Casa Mia - Gestione domestica",
   "main": "index.js",
-  "type": "module",
   "scripts": {
     "start": "node src/index.js",
     "build": "prisma generate",
