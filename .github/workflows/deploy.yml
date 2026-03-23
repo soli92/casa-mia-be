@@ -13,24 +13,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build --if-present
-
       - name: Deploy to Render
         env:
           RENDER_TOKEN: ${{ secrets.RENDER_TOKEN }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
         run: |
+          if [ -z "$RENDER_TOKEN" ] || [ -z "$RENDER_SERVICE_ID" ]; then
+            echo "⚠️ RENDER_TOKEN o RENDER_SERVICE_ID non configurati nei GitHub Secrets"
+            echo "Il workflow è configurato ma i secrets sono mancanti"
+            exit 1
+          fi
+          
+          echo "🚀 Triggering deploy on Render..."
           curl -X POST "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
             -H "Authorization: Bearer $RENDER_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{"clearCache":"do_not_clear"}'
+          
+          echo "✅ Deploy triggered successfully!"
