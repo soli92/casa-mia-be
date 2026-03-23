@@ -39,6 +39,10 @@ PORT=3001
 FRONTEND_URL=http://localhost:3000
 ```
 
+## 🚀 CI/CD
+
+Questo progetto usa GitHub Actions per il deploy automatico su Render ad ogni push su `main`.
+
 ## 🌐 Deploy
 
 Backend deployato su: https://casa-mia-be.onrender.com
