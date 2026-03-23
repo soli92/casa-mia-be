@@ -23,21 +23,25 @@ jobs:
       - name: Install dependencies
         run: npm ci
       env:
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        JWT_SECRET: ${{ secrets.JWT_SECRET }}
-        JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+        RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        RENDER_TOKEN: ${{ secrets.RENDER_TOKEN }}
         NODE_ENV: ${{ secrets.NODE_ENV }}
         PORT: ${{ secrets.PORT }}
         FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+        JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
       - name: Build
         run: npm run build --if-present
       env:
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        JWT_SECRET: ${{ secrets.JWT_SECRET }}
-        JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+        RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        RENDER_TOKEN: ${{ secrets.RENDER_TOKEN }}
         NODE_ENV: ${{ secrets.NODE_ENV }}
         PORT: ${{ secrets.PORT }}
         FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+        JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
 
       - name: Deploy to Render
