@@ -15,19 +15,30 @@ jobs:
 
       - name: Deploy to Render
         env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
           RENDER_TOKEN: ${{ secrets.RENDER_TOKEN }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
         run: |
-          if [ -z "$RENDER_TOKEN" ] || [ -z "$RENDER_SERVICE_ID" ]; then
-            echo "⚠️ RENDER_TOKEN o RENDER_SERVICE_ID non configurati nei GitHub Secrets"
-            echo "Il workflow è configurato ma i secrets sono mancanti"
-            exit 1
+          set -e
+          if [ -n "$RENDER_DEPLOY_HOOK" ]; then
+            echo "🚀 Triggering deploy via Deploy Hook..."
+            curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
+            echo "✅ Deploy hook invoked successfully!"
+            exit 0
           fi
-          
-          echo "🚀 Triggering deploy on Render..."
-          curl -X POST "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
-            -H "Authorization: Bearer $RENDER_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"clearCache":"do_not_clear"}'
-          
-          echo "✅ Deploy triggered successfully!"
+
+          if [ -n "$RENDER_TOKEN" ] && [ -n "$RENDER_SERVICE_ID" ]; then
+            echo "🚀 Triggering deploy via Render API..."
+            curl -fsS -X POST "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
+              -H "Authorization: Bearer $RENDER_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"clearCache":"do_not_clear"}'
+            echo "✅ Deploy triggered successfully!"
+            exit 0
+          fi
+
+          echo "⚠️ Nessun metodo di deploy configurato."
+          echo "Aggiungi uno di questi su GitHub → Settings → Secrets and variables → Actions:"
+          echo "  • RENDER_DEPLOY_HOOK — URL da Render → Service → Settings → Deploy Hook (consigliato)"
+          echo "  • oppure RENDER_TOKEN + RENDER_SERVICE_ID — API Render"
+          exit 1
