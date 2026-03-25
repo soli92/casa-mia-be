@@ -2,6 +2,7 @@ import express from 'express';
 import bcrypt from 'bcrypt';
 import { prisma } from '../utils/prisma.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.js';
+import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -142,13 +143,14 @@ router.post('/refresh', async (req, res) => {
   }
 });
 
-// Aggiungi membro alla famiglia (solo admin)
-router.post('/add-member', async (req, res) => {
+// Aggiungi membro alla famiglia (solo admin della propria famiglia)
+router.post('/add-member', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { email, password, name, familyId, role = 'MEMBER' } = req.body;
+    const { email, password, name, role = 'MEMBER' } = req.body;
+    const familyId = req.user.familyId;
 
-    if (!email || !password || !name || !familyId) {
-      return res.status(400).json({ error: 'Tutti i campi sono obbligatori' });
+    if (!email || !password || !name) {
+      return res.status(400).json({ error: 'Email, password e nome sono obbligatori' });
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email } });

@@ -1,13 +1,13 @@
+import dotenv from 'dotenv';
+
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import http from 'http';
 import cron from 'node-cron';
 import { prisma } from './utils/prisma.js';
 import { initWebSocket } from './websocket.js';
-
-// Carica variabili d'ambiente
-dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
@@ -25,7 +25,7 @@ import pantryRoutes from './routes/pantry.js';
 import shoppingRoutes from './routes/shopping.js';
 import recipeRoutes from './routes/recipes.js';
 import deadlineRoutes from './routes/deadlines.js';
-import iotRoutes from './routes/iot.js';
+import iotRoutes, { iotWebhookRouter } from './routes/iot.js';
 
 // Import middleware
 import { authenticateToken } from './middleware/auth.js';
@@ -38,6 +38,7 @@ app.use('/api/pantry', authenticateToken, pantryRoutes);
 app.use('/api/shopping', authenticateToken, shoppingRoutes);
 app.use('/api/recipes', authenticateToken, recipeRoutes);
 app.use('/api/deadlines', authenticateToken, deadlineRoutes);
+app.use('/api/iot', iotWebhookRouter);
 app.use('/api/iot', authenticateToken, iotRoutes);
 
 // Health check

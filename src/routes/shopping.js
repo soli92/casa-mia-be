@@ -1,11 +1,7 @@
 import express from 'express';
 import { prisma } from '../utils/prisma.js';
-import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
-
-// Tutte le route richiedono autenticazione
-router.use(authenticateToken);
 
 // Ottieni lista della spesa della famiglia
 router.get('/', async (req, res) => {
@@ -47,6 +43,66 @@ router.post('/', async (req, res) => {
   } catch (error) {
     console.error('Create shopping item error:', error);
     res.status(500).json({ error: 'Errore durante l\'aggiunta del prodotto' });
+  }
+});
+
+// Storico acquisti (prima di /:id)
+router.get('/history', async (req, res) => {
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const history = await prisma.shoppingItem.findMany({
+      where: {
+        familyId: req.user.familyId,
+        checked: true,
+        purchasedAt: { gte: thirtyDaysAgo },
+      },
+      include: { addedBy: { select: { name: true } } },
+      orderBy: { purchasedAt: 'desc' },
+    });
+
+    res.json(history);
+  } catch (error) {
+    console.error('Get shopping history error:', error);
+    res.status(500).json({ error: 'Errore durante il recupero dello storico' });
+  }
+});
+
+// Sposta dalla spesa alla dispensa (prima di PATCH /:id)
+router.post('/:id/move-to-pantry', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { expirationDate, unit = 'pz' } = req.body;
+
+    const shoppingItem = await prisma.shoppingItem.findUnique({ where: { id } });
+    if (!shoppingItem || shoppingItem.familyId !== req.user.familyId) {
+      return res.status(404).json({ error: 'Articolo non trovato' });
+    }
+
+    const pantryItem = await prisma.$transaction(async (tx) => {
+      const newPantryItem = await tx.pantryItem.create({
+        data: {
+          name: shoppingItem.name,
+          quantity: shoppingItem.quantity,
+          unit,
+          category: shoppingItem.category,
+          expirationDate: expirationDate ? new Date(expirationDate) : null,
+          status: 'OK',
+          familyId: req.user.familyId,
+          addedById: req.user.id,
+        },
+      });
+
+      await tx.shoppingItem.delete({ where: { id } });
+
+      return newPantryItem;
+    });
+
+    res.status(201).json(pantryItem);
+  } catch (error) {
+    console.error('Move to pantry error:', error);
+    res.status(500).json({ error: 'Errore durante lo spostamento in dispensa' });
   }
 });
 
@@ -98,67 +154,6 @@ router.delete('/:id', async (req, res) => {
   } catch (error) {
     console.error('Delete shopping item error:', error);
     res.status(500).json({ error: 'Errore durante l\'eliminazione' });
-  }
-});
-
-// Storico acquisti (articoli checked degli ultimi 30 giorni)
-router.get('/history', async (req, res) => {
-  try {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const history = await prisma.shoppingItem.findMany({
-      where: {
-        familyId: req.user.familyId,
-        checked: true,
-        purchasedAt: { gte: thirtyDaysAgo },
-      },
-      include: { addedBy: { select: { name: true } } },
-      orderBy: { purchasedAt: 'desc' },
-    });
-
-    res.json(history);
-  } catch (error) {
-    console.error('Get shopping history error:', error);
-    res.status(500).json({ error: 'Errore durante il recupero dello storico' });
-  }
-});
-
-// Sposta dalla spesa alla dispensa
-router.post('/:id/move-to-pantry', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { expirationDate, unit = 'pz' } = req.body;
-
-    const shoppingItem = await prisma.shoppingItem.findUnique({ where: { id } });
-    if (!shoppingItem || shoppingItem.familyId !== req.user.familyId) {
-      return res.status(404).json({ error: 'Articolo non trovato' });
-    }
-
-    // Crea nella dispensa e elimina dalla spesa
-    const pantryItem = await prisma.$transaction(async (tx) => {
-      const newPantryItem = await tx.pantryItem.create({
-        data: {
-          name: shoppingItem.name,
-          quantity: shoppingItem.quantity,
-          unit,
-          category: shoppingItem.category,
-          expirationDate: expirationDate ? new Date(expirationDate) : null,
-          status: 'OK',
-          familyId: req.user.familyId,
-          addedById: req.user.id,
-        },
-      });
-
-      await tx.shoppingItem.delete({ where: { id } });
-
-      return newPantryItem;
-    });
-
-    res.status(201).json(pantryItem);
-  } catch (error) {
-    console.error('Move to pantry error:', error);
-    res.status(500).json({ error: 'Errore durante lo spostamento in dispensa' });
   }
 });
 
