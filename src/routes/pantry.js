@@ -1,10 +1,7 @@
 import express from 'express';
 import { prisma } from '../utils/prisma.js';
-import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
-
-router.use(authenticateToken);
 
 // Aggiorna lo stato dei prodotti in base alla scadenza
 const updatePantryStatus = async (familyId) => {

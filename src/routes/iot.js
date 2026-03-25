@@ -1,10 +1,52 @@
 import express from 'express';
 import { prisma } from '../utils/prisma.js';
-import { authenticateToken } from '../middleware/auth.js';
+
+/** Pubblico: webhook dispositivi esterni (montato prima del router protetto in index) */
+export const iotWebhookRouter = express.Router();
+
+iotWebhookRouter.post('/webhook/:deviceId', async (req, res) => {
+  try {
+    const { deviceId } = req.params;
+    const { apiKey, eventType, payload } = req.body;
+
+    const device = await prisma.ioTDevice.findUnique({ where: { id: deviceId } });
+
+    if (!device) {
+      return res.status(404).json({ error: 'Dispositivo non trovato' });
+    }
+
+    if (device.apiKey && device.apiKey !== apiKey) {
+      return res.status(403).json({ error: 'API key non valida' });
+    }
+
+    const event = await prisma.$transaction(async (tx) => {
+      const newEvent = await tx.ioTEvent.create({
+        data: {
+          deviceId,
+          eventType: eventType || 'state_change',
+          payload: payload || {},
+        },
+      });
+
+      await tx.ioTDevice.update({
+        where: { id: deviceId },
+        data: {
+          status: 'online',
+          lastPing: new Date(),
+        },
+      });
+
+      return newEvent;
+    });
+
+    res.status(201).json(event);
+  } catch (error) {
+    console.error('IoT webhook error:', error);
+    res.status(500).json({ error: 'Errore durante la ricezione dell\'evento' });
+  }
+});
 
 const router = express.Router();
-
-router.use(authenticateToken);
 
 // Ottieni tutti i dispositivi IoT
 router.get('/devices', async (req, res) => {
@@ -128,51 +170,6 @@ router.delete('/devices/:id', async (req, res) => {
   } catch (error) {
     console.error('Delete IoT device error:', error);
     res.status(500).json({ error: 'Errore durante l\'eliminazione' });
-  }
-});
-
-// Webhook per ricevere eventi dai dispositivi (senza auth per dispositivi esterni)
-router.post('/webhook/:deviceId', async (req, res) => {
-  try {
-    const { deviceId } = req.params;
-    const { apiKey, eventType, payload } = req.body;
-
-    // Verifica dispositivo e API key
-    const device = await prisma.ioTDevice.findUnique({ where: { id: deviceId } });
-    
-    if (!device) {
-      return res.status(404).json({ error: 'Dispositivo non trovato' });
-    }
-
-    if (device.apiKey && device.apiKey !== apiKey) {
-      return res.status(403).json({ error: 'API key non valida' });
-    }
-
-    // Crea evento e aggiorna lastPing
-    const event = await prisma.$transaction(async (tx) => {
-      const newEvent = await tx.ioTEvent.create({
-        data: {
-          deviceId,
-          eventType: eventType || 'state_change',
-          payload: payload || {},
-        },
-      });
-
-      await tx.ioTDevice.update({
-        where: { id: deviceId },
-        data: {
-          status: 'online',
-          lastPing: new Date(),
-        },
-      });
-
-      return newEvent;
-    });
-
-    res.status(201).json(event);
-  } catch (error) {
-    console.error('IoT webhook error:', error);
-    res.status(500).json({ error: 'Errore durante la ricezione dell\'evento' });
   }
 });
 

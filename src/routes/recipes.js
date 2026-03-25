@@ -1,10 +1,7 @@
 import express from 'express';
 import { prisma } from '../utils/prisma.js';
-import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
-
-router.use(authenticateToken);
 
 // Ottieni ricette suggerite in base alla dispensa
 router.get('/suggestions', async (req, res) => {
