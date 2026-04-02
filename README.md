@@ -11,6 +11,7 @@ Backend Node.js/Express per l'applicazione di gestione domestica "Casa Mia".
 - **Suggerimenti ricette** basati su prodotti disponibili
 - **Calendario scadenze** (bollette, abbonamenti, ecc.)
 - **Lavagna condivisa** — post-it (`PostIt`) con posizione %, colori, CRUD sotto `/api/board`
+- **Documenti famiglia** — file su object storage (S3/R2): **cartelle** (`DocumentFolder`), metadati + `storageKey`; upload con **PUT** presigned; **lettura in app** con `GET` presigned (bucket **privato** ok; `S3_PUBLIC_URL` opzionale / legacy)
 - **Hub IoT** con WebSocket per dispositivi smart home in tempo reale
 
 ## 🛠️ Tech Stack
@@ -34,11 +35,11 @@ npm run dev
 ## 🧪 Test
 
 ```bash
-npm test          # Vitest (JWT, middleware auth, health HTTP)
+npm test          # Vitest
 npm run test:watch
 ```
 
-I test usano **supertest** sull’app Express (`createApp()` in `src/app.js`) senza avviare il server né richiedere database per `/health`. Variabili JWT nei test: vedi `tests/jwt.test.js`.
+Suite: **JWT** (`tests/jwt.test.js`), **middleware auth** (`tests/auth.middleware.test.js`), **health** HTTP su `createApp()` (`tests/app.test.js`), util **`documentStorage`** (`tests/documentStorage.test.js`), route **`/api/documents`** con Prisma/storage mockati (`tests/documents.routes.test.js`). Nessun database reale richiesto per i test attuali.
 
 ## 🏗️ Struttura runtime
 
@@ -89,15 +90,22 @@ Se il deploy falliva con **P3005**, ora `npm run prisma:migrate` esegue un basel
 
 Migrazione Prisma: `prisma/migrations/*_add_post_it/`. In deploy: `npx prisma migrate deploy`.
 
-### Documenti (S3 / CDN)
-Richiede variabili `S3_*` in `.env` (vedi `.env.example`): bucket **pubblico in lettura** (o dominio CDN) + `S3_PUBLIC_URL` senza slash finale. CORS sul bucket: consentire **PUT** e **HEAD** dall’origine del frontend.
+### Documenti (S3-compatibile, cartelle, URL firmati)
 
-- `GET /api/documents` - `{ items, storageConfigured, maxBytes }` (metadati + link pubblici)
-- `POST /api/documents/presign` - body `{ originalName, contentType, sizeBytes }` → URL firmato per upload diretto al bucket
-- `POST /api/documents/commit` - body `{ storageKey, originalName, contentType, sizeBytes }` dopo PUT riuscito → crea riga DB con `publicUrl`
-- `DELETE /api/documents/:id` - Rimuove oggetto da storage e metadati (stessa famiglia)
+**Configurazione** (`.env`, vedi `.env.example`): obbligatori `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`; opzionali `S3_REGION`, `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE` (tipico R2/MinIO). **`S3_PUBLIC_URL`** è **opzionale**: se assente, i nuovi documenti non hanno CDN pubblico e la lettura avviene solo tramite **GetObject** presigned dal backend.
 
-Migrazione: `prisma/migrations/*_family_documents/`.
+**CORS sul bucket**: consentire **PUT** e **HEAD** dall’origine del frontend (upload diretto dopo `presign`). Per **GET** su URL firmati, il browser parla con lo storage (stesso comportamento di bucket privato).
+
+- `GET /api/documents` — `{ folders, items, storageConfigured, maxBytes }`. Ogni voce in `items` include metadati, `storageKey`, `folderId`, relazioni `uploadedBy` / `folder`; **`publicUrl` non è esposto** nella risposta (anche se presente su righe legacy).
+- `POST /api/documents/folders` — body `{ name }` → crea cartella per la famiglia (`sortOrder` automatico).
+- `PATCH /api/documents/folders/:folderId` — body `{ name }` → rinomina.
+- `DELETE /api/documents/folders/:folderId` — elimina la cartella; i documenti collegati restano con `folderId` null.
+- `POST /api/documents/presign` — body `{ originalName, contentType, sizeBytes, folderId? }` → `{ uploadUrl, storageKey, … }` per **PUT** diretto al bucket.
+- `POST /api/documents/commit` — body `{ storageKey, originalName, contentType, sizeBytes, folderId? }` dopo PUT riuscito; verifica con **HEAD** sul bucket; crea riga `FamilyDocument` (eventuale `publicUrl` solo se `S3_PUBLIC_URL` è impostato).
+- `GET /api/documents/:id/access-url` — `{ url, expiresIn, mimeType, originalName }`: URL **GET** presigned (~15 min) per anteprima in app.
+- `DELETE /api/documents/:id` — rimuove oggetto da storage e riga DB (stessa famiglia).
+
+**Migrazioni Prisma**: `*_family_documents` (tabella documenti), `*_document_folders` (cartelle + `folderId` su documenti, `publicUrl` nullable).
 
 ### Shopping
 - `GET /api/shopping` - Lista della spesa
@@ -136,7 +144,7 @@ Il server espone **WebSocket nativo** (`ws`) sullo stesso HTTP server, path **`/
 
 Messaggi dal client:
 
-- `{"type":"update","resource":"shopping|pantry|…|board","action":"create|update|delete","data":{}}` — broadcast alla famiglia come `data_update` (include `userId`).
+- `{"type":"update","resource":"shopping|pantry|…|board|documents","action":"create|update|delete","data":{}}` — broadcast alla famiglia come `data_update` (include `userId`). Il frontend usa `documents` dopo upload/eliminazione documenti o modifiche cartelle.
 
 Messaggi verso il client:
 

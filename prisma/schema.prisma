@@ -88,27 +88,47 @@ model Family {
   recipes       Recipe[]
   deadlines     Deadline[]
   iotDevices    IoTDevice[]
-  postIts       PostIt[]
-  documents     FamilyDocument[]
+  postIts         PostIt[]
+  documents       FamilyDocument[]
+  documentFolders DocumentFolder[]
 }
 
-/// Documenti familiari: file su object storage (S3 / R2) con URL pubblico CDN
+/// Cartelle logiche per organizzare i documenti familiari (metadati + file su bucket)
+model DocumentFolder {
+  id        String   @id @default(cuid())
+  familyId  String
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  family    Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  documents FamilyDocument[]
+
+  @@index([familyId])
+}
+
+/// Documenti familiari: metadati in DB, file su object storage (S3 / R2); lettura via URL firmato
 model FamilyDocument {
   id           String   @id @default(cuid())
   familyId     String
+  folderId     String?
   uploadedById String
   originalName String
   mimeType     String
   sizeBytes    Int
   storageKey   String   @unique
-  publicUrl    String
+  /// Opzionale: valorizzato solo per dati migrati da versioni con CDN pubblico
+  publicUrl    String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  family     Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  uploadedBy User   @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  family     Family          @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  folder     DocumentFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  uploadedBy User            @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
 
   @@index([familyId])
+  @@index([folderId])
 }
 
 /// Post-it condivisi sulla lavagna della famiglia (posizione in % rispetto al contenitore)

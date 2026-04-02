@@ -134,7 +134,7 @@ npx prisma migrate resolve --applied "20260202140000_add_post_it"
 npx prisma migrate deploy
 ```
 
-**Database nuovo e vuoto:** nessun `resolve` — `migrate deploy` esegue in ordine `init_pre_postit` poi `add_post_it`.
+**Database nuovo e vuoto:** nessun `resolve` — `migrate deploy` applica tutte le migration in ordine (tra le altre: `init_pre_postit`, `add_post_it`, `family_invite_code`, `family_documents`, `document_folders` per cartelle documenti e `publicUrl` opzionale).
 
 ## 📝 Note
 

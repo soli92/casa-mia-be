@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import {
   S3Client,
   PutObjectCommand,
+  GetObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
 } from '@aws-sdk/client-s3';
@@ -9,17 +10,18 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const MAX_BYTES = 25 * 1024 * 1024;
 const PRESIGN_TTL_SEC = 900;
+const PRESIGN_GET_TTL_SEC = 900;
 
 function trimBase(url) {
   return String(url ?? '').replace(/\/+$/, '');
 }
 
+/** Bucket + credenziali: sufficiente per upload e URL firmati in lettura (bucket privato ok). */
 export function isDocumentStorageConfigured() {
   return Boolean(
     process.env.S3_BUCKET &&
       process.env.S3_ACCESS_KEY_ID &&
-      process.env.S3_SECRET_ACCESS_KEY &&
-      process.env.S3_PUBLIC_URL
+      process.env.S3_SECRET_ACCESS_KEY
   );
 }
 
@@ -81,10 +83,26 @@ export function buildStorageKey(familyId, originalName) {
   return `families/${familyId}/${randomUUID()}-${safe}`;
 }
 
+/** Solo se `S3_PUBLIC_URL` è impostato (CDN pubblico legacy). */
 export function buildPublicUrl(storageKey) {
   const base = trimBase(process.env.S3_PUBLIC_URL);
+  if (!base) return '';
   const key = String(storageKey).replace(/^\/+/, '');
   return `${base}/${encodeURI(key).replace(/%2F/g, '/')}`;
+}
+
+/**
+ * @param {string} storageKey
+ * @returns {Promise<string>}
+ */
+export async function getPresignedGetUrl(storageKey) {
+  const client = getS3Client();
+  const bucket = process.env.S3_BUCKET;
+  const cmd = new GetObjectCommand({
+    Bucket: bucket,
+    Key: storageKey,
+  });
+  return getSignedUrl(client, cmd, { expiresIn: PRESIGN_GET_TTL_SEC });
 }
 
 /**

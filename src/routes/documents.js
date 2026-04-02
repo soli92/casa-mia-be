@@ -9,36 +9,142 @@ import {
   buildStorageKey,
   buildPublicUrl,
   getPresignedPutUrl,
+  getPresignedGetUrl,
   headObjectMeta,
   deleteObject,
 } from '../utils/documentStorage.js';
 
 const router = express.Router();
+const PRESIGN_GET_TTL_SEC = 900;
+
+async function assertFolderInFamily(folderId, familyId) {
+  if (!folderId) return null;
+  const f = await prisma.documentFolder.findFirst({
+    where: { id: folderId, familyId },
+  });
+  return f;
+}
 
 router.get('/', async (req, res) => {
   try {
     if (!isDocumentStorageConfigured()) {
       return res.json({
+        folders: [],
         items: [],
         storageConfigured: false,
         maxBytes: getMaxDocumentBytes(),
       });
     }
 
-    const items = await prisma.familyDocument.findMany({
-      where: { familyId: req.user.familyId },
-      orderBy: { createdAt: 'desc' },
-      include: { uploadedBy: { select: { id: true, name: true } } },
-    });
+    const [folders, items] = await Promise.all([
+      prisma.documentFolder.findMany({
+        where: { familyId: req.user.familyId },
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      }),
+      prisma.familyDocument.findMany({
+        where: { familyId: req.user.familyId },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          uploadedBy: { select: { id: true, name: true } },
+          folder: { select: { id: true, name: true } },
+        },
+      }),
+    ]);
+
+    const safeItems = items.map(({ publicUrl: _omit, ...doc }) => doc);
 
     res.json({
-      items,
+      folders,
+      items: safeItems,
       storageConfigured: true,
       maxBytes: getMaxDocumentBytes(),
     });
   } catch (error) {
     console.error('List documents error:', error);
     res.status(500).json({ error: 'Errore nel recupero dei documenti' });
+  }
+});
+
+router.post('/folders', async (req, res) => {
+  try {
+    const raw = String(req.body?.name || '')
+      .trim()
+      .replace(/[/\\?%*:|"<>]/g, '_')
+      .slice(0, 120);
+    if (!raw) {
+      return res.status(400).json({ error: 'Nome cartella obbligatorio' });
+    }
+
+    const maxSort = await prisma.documentFolder.aggregate({
+      where: { familyId: req.user.familyId },
+      _max: { sortOrder: true },
+    });
+    const sortOrder = (maxSort._max.sortOrder ?? 0) + 1;
+
+    const folder = await prisma.documentFolder.create({
+      data: {
+        familyId: req.user.familyId,
+        name: raw,
+        sortOrder,
+      },
+    });
+
+    res.status(201).json(folder);
+  } catch (error) {
+    console.error('Create folder error:', error);
+    res.status(500).json({ error: 'Impossibile creare la cartella' });
+  }
+});
+
+router.patch('/folders/:folderId', async (req, res) => {
+  try {
+    const { folderId } = req.params;
+    const folder = await prisma.documentFolder.findFirst({
+      where: { id: folderId, familyId: req.user.familyId },
+    });
+    if (!folder) {
+      return res.status(404).json({ error: 'Cartella non trovata' });
+    }
+
+    const rawName = req.body?.name;
+    const name =
+      rawName !== undefined
+        ? String(rawName)
+            .trim()
+            .replace(/[/\\?%*:|"<>]/g, '_')
+            .slice(0, 120)
+        : folder.name;
+    if (!name) {
+      return res.status(400).json({ error: 'Nome non valido' });
+    }
+
+    const updated = await prisma.documentFolder.update({
+      where: { id: folderId },
+      data: { name },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Update folder error:', error);
+    res.status(500).json({ error: 'Impossibile aggiornare la cartella' });
+  }
+});
+
+router.delete('/folders/:folderId', async (req, res) => {
+  try {
+    const { folderId } = req.params;
+    const folder = await prisma.documentFolder.findFirst({
+      where: { id: folderId, familyId: req.user.familyId },
+    });
+    if (!folder) {
+      return res.status(404).json({ error: 'Cartella non trovata' });
+    }
+
+    await prisma.documentFolder.delete({ where: { id: folderId } });
+    res.json({ message: 'Cartella eliminata' });
+  } catch (error) {
+    console.error('Delete folder error:', error);
+    res.status(500).json({ error: 'Impossibile eliminare la cartella' });
   }
 });
 
@@ -51,7 +157,14 @@ router.post('/presign', async (req, res) => {
       });
     }
 
-    const { originalName, contentType, sizeBytes } = req.body ?? {};
+    const { originalName, contentType, sizeBytes, folderId } = req.body ?? {};
+    if (folderId) {
+      const f = await assertFolderInFamily(String(folderId), req.user.familyId);
+      if (!f) {
+        return res.status(400).json({ error: 'Cartella non trovata' });
+      }
+    }
+
     const nameSan = sanitizeOriginalFilename(originalName);
     const mime = String(contentType || '').trim();
     const size = Number(sizeBytes);
@@ -95,12 +208,22 @@ router.post('/commit', async (req, res) => {
       });
     }
 
-    const { storageKey, originalName, contentType, sizeBytes } = req.body ?? {};
+    const { storageKey, originalName, contentType, sizeBytes, folderId } =
+      req.body ?? {};
     const key = String(storageKey || '').trim();
     const prefix = `families/${req.user.familyId}/`;
 
     if (!key.startsWith(prefix) || key.includes('..')) {
       return res.status(400).json({ error: 'Percorso file non valido' });
+    }
+
+    let resolvedFolderId = null;
+    if (folderId) {
+      const f = await assertFolderInFamily(String(folderId), req.user.familyId);
+      if (!f) {
+        return res.status(400).json({ error: 'Cartella non trovata' });
+      }
+      resolvedFolderId = f.id;
     }
 
     const nameSan = sanitizeOriginalFilename(originalName);
@@ -138,28 +261,62 @@ router.post('/commit', async (req, res) => {
       return res.status(400).json({ error: 'Dimensione segnalata diversa da quella sullo storage' });
     }
 
-    const publicUrl = buildPublicUrl(key);
+    const legacyPublic = buildPublicUrl(key) || null;
 
     const doc = await prisma.familyDocument.create({
       data: {
         familyId: req.user.familyId,
+        folderId: resolvedFolderId,
         uploadedById: req.user.id,
         originalName: nameSan,
         mimeType: mime,
         sizeBytes: Math.round(Number(head.contentLength)),
         storageKey: key,
-        publicUrl,
+        publicUrl: legacyPublic,
       },
-      include: { uploadedBy: { select: { id: true, name: true } } },
+      include: {
+        uploadedBy: { select: { id: true, name: true } },
+        folder: { select: { id: true, name: true } },
+      },
     });
 
-    res.status(201).json(doc);
+    const { publicUrl: _o, ...safe } = doc;
+    res.status(201).json(safe);
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       return res.status(409).json({ error: 'Questo file è già stato registrato' });
     }
     console.error('Commit document error:', error);
     res.status(500).json({ error: 'Errore durante la registrazione del documento' });
+  }
+});
+
+router.get('/:id/access-url', async (req, res) => {
+  try {
+    if (!isDocumentStorageConfigured()) {
+      return res.status(503).json({
+        error: 'Archivio documenti non configurato',
+        code: 'STORAGE_DISABLED',
+      });
+    }
+
+    const { id } = req.params;
+    const doc = await prisma.familyDocument.findUnique({ where: { id } });
+
+    if (!doc || doc.familyId !== req.user.familyId) {
+      return res.status(404).json({ error: 'Documento non trovato' });
+    }
+
+    const url = await getPresignedGetUrl(doc.storageKey);
+    res.json({
+      url,
+      expiresIn: PRESIGN_GET_TTL_SEC,
+      mimeType: doc.mimeType,
+      originalName: doc.originalName,
+    });
+  } catch (error) {
+    console.error('Document access-url error:', error);
+    res.status(500).json({ error: 'Impossibile generare il link di accesso' });
   }
 });
 
