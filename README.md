@@ -5,10 +5,12 @@ Backend Node.js/Express per l'applicazione di gestione domestica "Casa Mia".
 ## 🚀 Features
 
 - **Autenticazione JWT** con refresh token
+- **Multi-utente per famiglia** — i dati REST sono filtrati per `familyId`; tutti i membri leggono/scrivono gli stessi dati (solo **admin**: `add-member`, `PATCH` nome famiglia)
 - **Lista della spesa** con categorie e storico
 - **Dispensa** con alert scadenze
 - **Suggerimenti ricette** basati su prodotti disponibili
 - **Calendario scadenze** (bollette, abbonamenti, ecc.)
+- **Lavagna condivisa** — post-it (`PostIt`) con posizione %, colori, CRUD sotto `/api/board`
 - **Hub IoT** con WebSocket per dispositivi smart home in tempo reale
 
 ## 🛠️ Tech Stack
@@ -71,8 +73,17 @@ Su **Render**, `DATABASE_URL` verso Supabase: di solito **Session pool** (`aws-0
 - `POST /api/auth/register` - Registrazione utente (famiglia + admin)
 - `POST /api/auth/login` - Login
 - `POST /api/auth/refresh` - Nuovi access/refresh token
-- `GET /api/auth/me` - Profilo utente (Bearer access token)
+- `GET /api/auth/me` - Profilo utente + oggetto `family` (Bearer)
+- `PATCH /api/auth/family` - Rinomina famiglia (solo admin, body `{ "name": "..." }`)
 - `POST /api/auth/add-member` - Aggiungi membro (solo admin, Bearer)
+
+### Board (lavagna / post-it)
+- `GET /api/board/post-its` - Elenco post-it della famiglia
+- `POST /api/board/post-its` - Crea (body opzionale: `content`, `color`, `xPercent`, `yPercent`, …)
+- `PATCH /api/board/post-its/:id` - Aggiorna testo, colore, posizione, `zIndex`, `rotation`
+- `DELETE /api/board/post-its/:id` - Elimina
+
+Migrazione Prisma: `prisma/migrations/*_add_post_it/`. In deploy: `npx prisma migrate deploy`.
 
 ### Shopping
 - `GET /api/shopping` - Lista della spesa
@@ -107,12 +118,18 @@ Su **Render**, `DATABASE_URL` verso Supabase: di solito **Session pool** (`aws-0
 
 ## 🔌 WebSocket
 
-Il server espone **WebSocket nativo** (`ws`) sullo stesso HTTP server, path **`/ws`** (es. `ws://localhost:3001/ws`). Il frontend può usare `WebSocket` nel browser o un client compatibile; `socket.io-client` non è intercambiabile senza adapter.
+Il server espone **WebSocket nativo** (`ws`) sullo stesso HTTP server, path **`/ws`** (es. `ws://localhost:3001/ws`). Dopo il messaggio `{"type":"auth","token":"<JWT>"}` il client è associato alla `familyId`.
 
-Eventi (dopo messaggio `auth` con token JWT):
+Messaggi dal client:
 
-- `device:status` - Cambio stato dispositivo
-- `device:connected` - Nuovo dispositivo connesso
+- `{"type":"update","resource":"shopping|pantry|…|board","action":"create|update|delete","data":{}}` — broadcast alla famiglia come `data_update` (include `userId`).
+
+Messaggi verso il client:
+
+- `auth_success` — autenticazione OK
+- `data_update` — altro membro ha aggiornato una risorsa (il frontend usa toast + refetch)
+- `iot_update` — evento IoT
+- `error` — errore (es. token non valido)
 
 ## 📄 License
 

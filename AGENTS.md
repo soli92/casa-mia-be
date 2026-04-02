@@ -27,4 +27,5 @@ Backend **Express** (ESM), **Prisma** + PostgreSQL, JWT access/refresh, WebSocke
 ## Regole
 
 - Nuove route protette: `authenticateToken` (e `requireAdmin` se serve).
-- Coerenza payload auth con il frontend: `accessToken` / `refreshToken` (non `token`).
+- Coerenza payload auth con il frontend: `accessToken` / `refreshToken` (non `token`); login/register includono `family`.
+- Dati condivisi: filtrare sempre per `req.user.familyId` (modello `PostIt` e route `src/routes/board.js`).

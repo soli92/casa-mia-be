@@ -68,6 +68,7 @@ model User {
   deadlines         Deadline[]
   recipeViews       RecipeView[]
   notificationPrefs NotificationPreference[]
+  postIts           PostIt[]
 
   @@index([familyId])
 }
@@ -84,6 +85,27 @@ model Family {
   recipes       Recipe[]
   deadlines     Deadline[]
   iotDevices    IoTDevice[]
+  postIts       PostIt[]
+}
+
+/// Post-it condivisi sulla lavagna della famiglia (posizione in % rispetto al contenitore)
+model PostIt {
+  id          String   @id @default(cuid())
+  content     String
+  color       String   @default("amber")
+  xPercent    Float    @default(12)
+  yPercent    Float    @default(12)
+  zIndex      Int      @default(1)
+  rotation    Float    @default(0)
+  familyId    String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  family    Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
 }
 
 model ShoppingItem {

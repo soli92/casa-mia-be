@@ -183,6 +183,26 @@ router.post('/refresh', async (req, res) => {
   }
 });
 
+// Rinomina famiglia (solo admin)
+router.patch('/family', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const nameTrim = String(req.body?.name ?? '').trim();
+    if (!nameTrim) {
+      return res.status(400).json({ error: 'Nome famiglia obbligatorio' });
+    }
+
+    const family = await prisma.family.update({
+      where: { id: req.user.familyId },
+      data: { name: nameTrim },
+    });
+
+    res.json({ family });
+  } catch (error) {
+    console.error('Update family error:', error);
+    res.status(500).json({ error: 'Errore durante l\'aggiornamento della famiglia' });
+  }
+});
+
 // Aggiungi membro alla famiglia (solo admin della propria famiglia)
 router.post('/add-member', authenticateToken, requireAdmin, async (req, res) => {
   try {
