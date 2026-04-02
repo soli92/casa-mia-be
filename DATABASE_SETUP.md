@@ -117,20 +117,21 @@ Controlla anche: progetto **in pausa** su free tier.
 
 ## Errore Prisma **P3005** (*database schema is not empty*)
 
-Succede se il database **aveva già le tabelle** (es. creato con `prisma db push` o a mano) e **non** ha ancora lo storico in `public._prisma_migrations`. `migrate deploy` non applica la prima migration su un DB “non vuoto” finché non fai **baseline** (segna come già applicata la migration iniziale, **senza** rieseguire il SQL).
+Succede se il database **aveva già le tabelle** (es. creato con `prisma db push`) e **non** ha ancora lo storico in `public._prisma_migrations`: la prima migration non può essere eseguita “da zero” su un DB già popolato.
 
-1. Da **macchina locale** (o shell Render con stessa `DATABASE_URL` di produzione), con Prisma aggiornato dal repo:
-   ```bash
-   cd casa-mia-be
-   export DATABASE_URL="postgresql://..."   # connection string diretta consigliata (porta 5432)
-   npx prisma migrate resolve --applied "20260101000000_init_pre_postit"
-   ```
-2. Poi esegui di nuovo il deploy (o `npx prisma migrate deploy`): verrà applicata solo **`20260202140000_add_post_it`** (tabella `PostIt`) se non esiste ancora.
+**Su Render** lo script `npm run prisma:migrate` (`scripts/prisma-migrate-with-baseline.mjs`) prova a risolvere da solo: se esiste la tabella `User` e manca la migration `20260101000000_init_pre_postit` nello storico, esegue `prisma migrate resolve --applied` per init (e, se `PostIt` esiste già, anche per `20260202140000_add_post_it`), poi `prisma migrate deploy`.
 
-Se la tabella **`PostIt` è già presente** (l’hai creata a mano), segna anche quella come applicata e non lasciare `migrate deploy` ricrearla:
+Per **disattivare** questo comportamento e usare solo `migrate deploy`: variabile **`PRISMA_SKIP_AUTO_BASELINE=1`** sul servizio Render.
+
+**Baseline manuale** (se preferisci non usare lo script automatico):
 
 ```bash
+cd casa-mia-be
+export DATABASE_URL="postgresql://..."
+npx prisma migrate resolve --applied "20260101000000_init_pre_postit"
+# Se PostIt esiste già a mano:
 npx prisma migrate resolve --applied "20260202140000_add_post_it"
+npx prisma migrate deploy
 ```
 
 **Database nuovo e vuoto:** nessun `resolve` — `migrate deploy` esegue in ordine `init_pre_postit` poi `add_post_it`.

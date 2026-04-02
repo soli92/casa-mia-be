@@ -9,7 +9,7 @@
     "build": "prisma generate",
     "dev": "node --watch src/index.js",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate deploy",
+    "prisma:migrate": "node scripts/prisma-migrate-with-baseline.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
