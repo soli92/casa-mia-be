@@ -63,7 +63,7 @@ Questo progetto usa GitHub Actions per il deploy automatico su Render ad ogni pu
 
 Backend deployato su: https://casa-mia-be.onrender.com
 
-Su **Render**, `DATABASE_URL` verso Supabase deve usare il **connection pooler** (porta **6543**) e `?pgbouncer=true`, non `db.*:5432` (spesso irraggiungibile da IPv4). Dettaglio in **`DATABASE_SETUP.md`**.
+Su **Render**, `DATABASE_URL` verso Supabase: **Transaction pool** → stesso host `db.<ref>.supabase.co` ma porta **6543**, utente **`postgres`**, query string **`?pgbouncer=true`** (non mescolare con la stringa Session su `aws-0-*.pooler`). Dettaglio in **`DATABASE_SETUP.md`**.
 
 ## 🌐 API Endpoints
 

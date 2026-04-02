@@ -68,20 +68,52 @@ DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/
 
 Railway eseguirà automaticamente `prisma generate` durante il build.
 
-## ☁️ Deploy su Render + Supabase (errore “Can’t reach database server”)
+## ☁️ Deploy su Render + Supabase
 
-L’host **`db.<ref>.supabase.co:5432`** spesso è raggiungibile solo via **IPv6**. **Render** (e altri provider IPv4-only) non riesce a connettersi → Prisma segnala *Can’t reach database server*.
+La **connessione diretta** `db.<ref>.supabase.co:5432` è spesso solo **IPv6** → su **Render** Prisma può dare *Can’t reach database server*.
 
-**Soluzione:** in Dashboard Supabase → **Project Settings** → **Database** → **Connection string**, scegli **Transaction pooler** (host tipo `aws-0-<region>.pooler.supabase.com`, porta **6543**, utente spesso `postgres.<project-ref>`). Imposta su Render:
+Supabase espone **due** stringhe pooler diverse (non vanno mescolate host + utente a caso, altrimenti compare **`FATAL: Tenant or user not found`**):
+
+### A) Transaction pooler (consigliato per Prisma da Render)
+
+Formato ufficiale attuale ([docs Supabase](https://supabase.com/docs/guides/database/connecting-to-postgres)):
+
+- Host: **`db.<project-ref>.supabase.co`**
+- Porta: **`6543`** (non 5432)
+- Utente: **`postgres`** (solo `postgres`, senza suffisso `.ref`)
+
+Esempio (ref e password da sostituire):
 
 ```
-DATABASE_URL=postgresql://postgres.<PROJECT_REF>:[PASSWORD]@aws-0-<REGION>.pooler.supabase.com:6543/postgres?pgbouncer=true
+DATABASE_URL=postgresql://postgres:[PASSWORD]@db.<PROJECT_REF>.supabase.co:6543/postgres?pgbouncer=true
 ```
 
-(`<REGION>` deve coincidere con la regione del progetto, es. `eu-central-1`.)
+Aggiungi sempre **`?pgbouncer=true`** per Prisma (transaction pooler / prepared statements).
 
-- **Migrazioni** (`prisma migrate deploy`): eseguile da locale (o CI) con la URI **diretta** `db.*:5432` se il pooler non supporta tutti i comandi di migrazione.
+### B) Session pooler (IPv4, backend persistente)
+
+- Host: **`aws-0-<region>.pooler.supabase.com`** (es. `eu-west-1` → `aws-0-eu-west-1`)
+- Porta: **`5432`**
+- Utente: **`postgres.<project-ref>`** (con il punto e il ref)
+
+Esempio:
+
+```
+DATABASE_URL=postgresql://postgres.<PROJECT_REF>:[PASSWORD]@aws-0-<REGION>.pooler.supabase.com:5432/postgres
+```
+
+Per Prisma di solito resti sulla **A)** con `?pgbouncer=true`.
+
+**Da dove copiare:** dashboard progetto → **Connect** → scegli **Transaction pool** o **Session pool** e incolla l’URI così com’è; in transaction aggiungi `pgbouncer=true` se manca.
+
+- **Migrazioni** (`prisma migrate deploy`): da locale (o CI) con URI **diretta** `db.*:5432` se serve.
 - Il build su Render usa solo `prisma generate` (nessuna connessione al DB).
+
+### Errore `FATAL: Tenant or user not found`
+
+Di solito è **host + utente incoerenti** (es. utente `postgres.<ref>` su `db.*:6543`, oppure utente `postgres` su `aws-0-*.pooler.supabase.com:6543`). Usa la coppia **A** o **B** sopra, oppure copia dal pulsante **Connect** senza modificarla a mano.
+
+Controlla anche: **password** con caratteri speciali → percent-encoding nell’URL; progetto **in pausa** su free tier.
 
 ## 📝 Note
 
