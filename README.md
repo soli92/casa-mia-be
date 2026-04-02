@@ -67,6 +67,8 @@ Backend deployato su: https://casa-mia-be.onrender.com
 
 Su **Render**, `DATABASE_URL` verso Supabase: di solito **Session pool** (`aws-0-<region>.pooler.supabase.com:5432`, utente `postgres.<ref>`, `sslmode=require`). Se `db.*:6543` non risponde, è normale: usa la session. Dettaglio in **`DATABASE_SETUP.md`**.
 
+Se il deploy fallisce con **P3005** (DB già esistente senza storico migrazioni), segui la sezione *Errore Prisma P3005* in **`DATABASE_SETUP.md`** (comando `migrate resolve` una tantum).
+
 ## 🌐 API Endpoints
 
 ### Auth

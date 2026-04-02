@@ -102,8 +102,8 @@ Se vedi *Can’t reach … :6543*, passa alla **A)**.
 
 **Da dove copiare:** dashboard → **Connect** → **Session pool** (Render) oppure **Transaction pool**; aggiungi `sslmode=require` se manca; in transaction aggiungi `pgbouncer=true` per Prisma.
 
-- **Migrazioni** (`prisma migrate deploy`): da locale (o CI) con URI **diretta** `db.*:5432` se serve.
-- Il build su Render usa solo `prisma generate` (nessuna connessione al DB).
+- **Migrazioni** (`prisma migrate deploy`): allo **start** del servizio Render (`npm run prisma:migrate && npm run start` in `render.yaml`), con la stessa `DATABASE_URL` del runtime.
+- **Baseline (DB già popolato senza `_prisma_migrations`)** — vedi sotto *Errore P3005*.
 
 ### Errore `FATAL: Tenant or user not found`
 
@@ -114,6 +114,26 @@ Se vedi *Can’t reach … :6543*, passa alla **A)**.
 5. **Log di avvio** — Il backend in produzione stampa una riga `🗄️ DB target: host:port (user: …)` con eventuale avviso se utente e host sembrano incoerenti. Per disattivare: `LOG_DATABASE_TARGET=0`.
 
 Controlla anche: progetto **in pausa** su free tier.
+
+## Errore Prisma **P3005** (*database schema is not empty*)
+
+Succede se il database **aveva già le tabelle** (es. creato con `prisma db push` o a mano) e **non** ha ancora lo storico in `public._prisma_migrations`. `migrate deploy` non applica la prima migration su un DB “non vuoto” finché non fai **baseline** (segna come già applicata la migration iniziale, **senza** rieseguire il SQL).
+
+1. Da **macchina locale** (o shell Render con stessa `DATABASE_URL` di produzione), con Prisma aggiornato dal repo:
+   ```bash
+   cd casa-mia-be
+   export DATABASE_URL="postgresql://..."   # connection string diretta consigliata (porta 5432)
+   npx prisma migrate resolve --applied "20260101000000_init_pre_postit"
+   ```
+2. Poi esegui di nuovo il deploy (o `npx prisma migrate deploy`): verrà applicata solo **`20260202140000_add_post_it`** (tabella `PostIt`) se non esiste ancora.
+
+Se la tabella **`PostIt` è già presente** (l’hai creata a mano), segna anche quella come applicata e non lasciare `migrate deploy` ricrearla:
+
+```bash
+npx prisma migrate resolve --applied "20260202140000_add_post_it"
+```
+
+**Database nuovo e vuoto:** nessun `resolve` — `migrate deploy` esegue in ordine `init_pre_postit` poi `add_post_it`.
 
 ## 📝 Note
 
