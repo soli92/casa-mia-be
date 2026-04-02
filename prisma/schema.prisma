@@ -74,10 +74,12 @@ model User {
 }
 
 model Family {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  name       String
+  /// Codice per unirsi alla stessa casa (non è il nome visualizzato: due famiglie possono avere lo stesso nome)
+  inviteCode String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   users         User[]
   shoppingItems ShoppingItem[]

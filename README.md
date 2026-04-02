@@ -72,10 +72,11 @@ Se il deploy falliva con **P3005**, ora `npm run prisma:migrate` esegue un basel
 ## 🌐 API Endpoints
 
 ### Auth
-- `POST /api/auth/register` - Registrazione utente (famiglia + admin)
+- `POST /api/auth/register` - Registrazione utente (**nuova** famiglia + admin; ottiene anche `family.inviteCode`)
+- `POST /api/auth/join` - Entra in famiglia esistente con `{ inviteCode, email, password, name }` (stesso `familyId` dei dati condivisi)
 - `POST /api/auth/login` - Login
 - `POST /api/auth/refresh` - Nuovi access/refresh token
-- `GET /api/auth/me` - Profilo utente + oggetto `family` (Bearer)
+- `GET /api/auth/me` - Profilo utente + oggetto `family` (Bearer). `family.inviteCode` è incluso **solo** se sei `ADMIN` (per invitare altri).
 - `GET /api/auth/members` - Elenco membri del nucleo (`id`, `email`, `name`, `role`, `createdAt`) (Bearer)
 - `PATCH /api/auth/family` - Rinomina famiglia (solo admin, body `{ "name": "..." }`)
 - `POST /api/auth/add-member` - Aggiungi membro (solo admin, Bearer)

@@ -2,6 +2,7 @@ import express from 'express';
 import bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../utils/prisma.js';
+import { allocateUniqueFamilyInviteCode } from '../utils/familyInvite.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.js';
 import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 
@@ -9,6 +10,27 @@ const router = express.Router();
 
 function normalizeEmail(email) {
   return String(email ?? '').trim().toLowerCase();
+}
+
+/** Dati famiglia esposti al client: `inviteCode` solo per admin (per invitare altri). */
+function familyForClient(family, requesterRole) {
+  if (!family) return null;
+  const base = {
+    id: family.id,
+    name: family.name,
+    createdAt: family.createdAt,
+    updatedAt: family.updatedAt,
+  };
+  if (requesterRole === 'ADMIN') {
+    base.inviteCode = family.inviteCode;
+  }
+  return base;
+}
+
+function normalizeInviteCode(raw) {
+  return String(raw ?? '')
+    .replace(/[\s-]/g, '')
+    .toUpperCase();
 }
 
 // Registrazione nuova famiglia + primo utente admin
@@ -32,10 +54,12 @@ router.post('/register', async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const inviteCode = await allocateUniqueFamilyInviteCode();
+
     // Crea famiglia e utente admin in una transazione
     const result = await prisma.$transaction(async (tx) => {
       const family = await tx.family.create({
-        data: { name: familyTrim },
+        data: { name: familyTrim, inviteCode },
       });
 
       const user = await tx.user.create({
@@ -62,7 +86,7 @@ router.post('/register', async (req, res) => {
         role: result.user.role,
         familyId: result.user.familyId,
       },
-      family: result.family,
+      family: familyForClient(result.family, 'ADMIN'),
       accessToken,
       refreshToken,
     });
@@ -72,6 +96,71 @@ router.post('/register', async (req, res) => {
     }
     console.error('Register error:', error);
     res.status(500).json({ error: 'Errore durante la registrazione' });
+  }
+});
+
+// Unisciti a una famiglia esistente (stesso familyId = dati condivisi). Il nome famiglia da solo non basta.
+router.post('/join', async (req, res) => {
+  try {
+    const { inviteCode: rawCode, email: rawEmail, password, name } = req.body;
+    const inviteCode = normalizeInviteCode(rawCode);
+    const email = normalizeEmail(rawEmail);
+    const nameTrim = String(name ?? '').trim();
+
+    if (!inviteCode || !email || !password || !nameTrim) {
+      return res.status(400).json({ error: 'Codice invito, nome, email e password sono obbligatori' });
+    }
+
+    if (inviteCode.length < 6) {
+      return res.status(400).json({ error: 'Codice invito non valido' });
+    }
+
+    const family = await prisma.family.findUnique({ where: { inviteCode } });
+    if (!family) {
+      return res.status(404).json({ error: 'Codice invito non trovato. Chiedi il codice all’amministratore della casa.' });
+    }
+
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({
+        error:
+          'Email già registrata. Se ti sei registrata da sola con “Registrati”, hai creato un’altra casa: usa un’altra email qui oppure chiedi all’admin di aggiungerti da Famiglia.',
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        name: nameTrim,
+        role: 'MEMBER',
+        familyId: family.id,
+      },
+    });
+
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    res.status(201).json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        familyId: user.familyId,
+      },
+      family: familyForClient(family, user.role),
+      accessToken,
+      refreshToken,
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return res.status(400).json({ error: 'Email già registrata' });
+    }
+    console.error('Join family error:', error);
+    res.status(500).json({ error: 'Errore durante l’iscrizione alla famiglia' });
   }
 });
 
@@ -110,7 +199,7 @@ router.post('/login', async (req, res) => {
         role: user.role,
         familyId: user.familyId,
       },
-      family: user.family,
+      family: familyForClient(user.family, user.role),
       accessToken,
       refreshToken,
     });
@@ -161,7 +250,7 @@ router.get('/me', authenticateToken, async (req, res) => {
         role: user.role,
         familyId: user.familyId,
       },
-      family: user.family,
+      family: familyForClient(user.family, user.role),
     });
   } catch (error) {
     console.error('Me error:', error);
@@ -217,7 +306,7 @@ router.patch('/family', authenticateToken, requireAdmin, async (req, res) => {
       data: { name: nameTrim },
     });
 
-    res.json({ family });
+    res.json({ family: familyForClient(family, 'ADMIN') });
   } catch (error) {
     console.error('Update family error:', error);
     res.status(500).json({ error: 'Errore durante l\'aggiornamento della famiglia' });
