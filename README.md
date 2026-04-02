@@ -53,6 +53,8 @@ PORT=3001
 FRONTEND_URL=http://localhost:3000
 ```
 
+Per **CORS**, `FRONTEND_URL` può elencare più origini separate da **virgola** (es. URL produzione + preview Vercel). Deve coincidere con l’origine del browser (`NEXT_PUBLIC_API_URL` sul frontend deve puntare a questo backend).
+
 ## 🚀 CI/CD
 
 Questo progetto usa GitHub Actions per il deploy automatico su Render ad ogni push su `main`.

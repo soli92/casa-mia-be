@@ -12,12 +12,26 @@ import { authenticateToken } from './middleware/auth.js';
 /**
  * Express app (senza listen). Usato da index.js e dai test.
  */
+function allowedCorsOrigins() {
+  const raw = process.env.FRONTEND_URL || 'http://localhost:3000';
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 export function createApp() {
   const app = express();
 
   app.use(
     cors({
-      origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+      origin(origin, callback) {
+        const allowed = allowedCorsOrigins();
+        if (!origin || allowed.includes(origin)) {
+          return callback(null, true);
+        }
+        callback(null, false);
+      },
       credentials: true,
     })
   );
