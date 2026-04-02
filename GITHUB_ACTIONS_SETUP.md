@@ -64,7 +64,7 @@ jobs:
 
 Assicurati che tutte queste variabili siano configurate su Render:
 
-- ✅ `DATABASE_URL` - PostgreSQL; con **Supabase su Render** usa **Transaction pool**: `db.<ref>.supabase.co:6543`, utente `postgres`, `?pgbouncer=true` — vedi `DATABASE_SETUP.md`
+- ✅ `DATABASE_URL` - PostgreSQL; **Supabase su Render**: spesso **Session pool** `aws-0-*.pooler.supabase.com:5432` + utente `postgres.<ref>` — vedi `DATABASE_SETUP.md`
 - ✅ `JWT_SECRET` - Secret per JWT access token
 - ✅ `JWT_REFRESH_SECRET` - Secret per JWT refresh token
 - ✅ `NODE_ENV` - `production`

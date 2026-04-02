@@ -70,48 +70,44 @@ Railway eseguirà automaticamente `prisma generate` durante il build.
 
 ## ☁️ Deploy su Render + Supabase
 
-La **connessione diretta** `db.<ref>.supabase.co:5432` è spesso solo **IPv6** → su **Render** Prisma può dare *Can’t reach database server*.
+Su **Render** (e altri host **solo IPv4**) la connessione **diretta** `db.<ref>.supabase.co:5432` spesso non risponde → *Can’t reach database server*.
 
-Supabase espone **due** stringhe pooler diverse (non vanno mescolate host + utente a caso, altrimenti compare **`FATAL: Tenant or user not found`**):
+A volte anche **`db.<ref>.supabase.co:6543`** (transaction pooler) **non è raggiungibile** dal data center di Render: in quel caso usa per forza lo **Session pooler** (host `aws-0-*`), pensato proprio per backend persistenti su IPv4 ([docs Supabase](https://supabase.com/docs/guides/database/connecting-to-postgres)).
 
-### A) Transaction pooler (consigliato per Prisma da Render)
+Supabase espone **due** pooler con **regole fisse** (non mescolare host + utente → **`FATAL: Tenant or user not found`**):
 
-Formato ufficiale attuale ([docs Supabase](https://supabase.com/docs/guides/database/connecting-to-postgres)):
-
-- Host: **`db.<project-ref>.supabase.co`**
-- Porta: **`6543`** (non 5432)
-- Utente: **`postgres`** (solo `postgres`, senza suffisso `.ref`)
-
-Esempio (ref e password da sostituire):
-
-```
-DATABASE_URL=postgresql://postgres:[PASSWORD]@db.<PROJECT_REF>.supabase.co:6543/postgres?pgbouncer=true
-```
-
-Aggiungi sempre **`?pgbouncer=true`** per Prisma (transaction pooler / prepared statements).
-
-### B) Session pooler (IPv4, backend persistente)
+### A) Session pooler — **prima scelta su Render**
 
 - Host: **`aws-0-<region>.pooler.supabase.com`** (es. `eu-west-1` → `aws-0-eu-west-1`)
 - Porta: **`5432`**
-- Utente: **`postgres.<project-ref>`** (con il punto e il ref)
-
-Esempio:
+- Utente: **`postgres.<project-ref>`** (punto + ref, come in dashboard)
 
 ```
-DATABASE_URL=postgresql://postgres.<PROJECT_REF>:[PASSWORD]@aws-0-<REGION>.pooler.supabase.com:5432/postgres
+DATABASE_URL=postgresql://postgres.<PROJECT_REF>:[PASSWORD]@aws-0-<REGION>.pooler.supabase.com:5432/postgres?sslmode=require
 ```
 
-Per Prisma di solito resti sulla **A)** con `?pgbouncer=true`.
+Prisma va bene in **session mode** (niente `pgbouncer=true`).
 
-**Da dove copiare:** dashboard progetto → **Connect** → scegli **Transaction pool** o **Session pool** e incolla l’URI così com’è; in transaction aggiungi `pgbouncer=true` se manca.
+### B) Transaction pooler (serverless / se `db.*:6543` risponde)
+
+- Host: **`db.<project-ref>.supabase.co`**
+- Porta: **`6543`**
+- Utente: **`postgres`** (senza suffisso `.ref`)
+
+```
+DATABASE_URL=postgresql://postgres:[PASSWORD]@db.<PROJECT_REF>.supabase.co:6543/postgres?pgbouncer=true&sslmode=require
+```
+
+Se vedi *Can’t reach … :6543*, passa alla **A)**.
+
+**Da dove copiare:** dashboard → **Connect** → **Session pool** (Render) oppure **Transaction pool**; aggiungi `sslmode=require` se manca; in transaction aggiungi `pgbouncer=true` per Prisma.
 
 - **Migrazioni** (`prisma migrate deploy`): da locale (o CI) con URI **diretta** `db.*:5432` se serve.
 - Il build su Render usa solo `prisma generate` (nessuna connessione al DB).
 
 ### Errore `FATAL: Tenant or user not found`
 
-Di solito è **host + utente incoerenti** (es. utente `postgres.<ref>` su `db.*:6543`, oppure utente `postgres` su `aws-0-*.pooler.supabase.com:6543`). Usa la coppia **A** o **B** sopra, oppure copia dal pulsante **Connect** senza modificarla a mano.
+**Host + utente incoerenti**: es. `postgres.<ref>` su `db.*:6543`, oppure solo `postgres` su `aws-0-*.pooler.supabase.com` (senza la porta giusta). Usa la coppia **A** (session) o **B** (transaction) sopra, oppure incolla dal **Connect** senza modifiche manuali.
 
 Controlla anche: **password** con caratteri speciali → percent-encoding nell’URL; progetto **in pausa** su free tier.
 

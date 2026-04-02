@@ -63,7 +63,7 @@ Questo progetto usa GitHub Actions per il deploy automatico su Render ad ogni pu
 
 Backend deployato su: https://casa-mia-be.onrender.com
 
-Su **Render**, `DATABASE_URL` verso Supabase: **Transaction pool** → stesso host `db.<ref>.supabase.co` ma porta **6543**, utente **`postgres`**, query string **`?pgbouncer=true`** (non mescolare con la stringa Session su `aws-0-*.pooler`). Dettaglio in **`DATABASE_SETUP.md`**.
+Su **Render**, `DATABASE_URL` verso Supabase: di solito **Session pool** (`aws-0-<region>.pooler.supabase.com:5432`, utente `postgres.<ref>`, `sslmode=require`). Se `db.*:6543` non risponde, è normale: usa la session. Dettaglio in **`DATABASE_SETUP.md`**.
 
 ## 🌐 API Endpoints
 
