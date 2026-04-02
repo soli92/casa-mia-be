@@ -89,6 +89,16 @@ Se il deploy falliva con **P3005**, ora `npm run prisma:migrate` esegue un basel
 
 Migrazione Prisma: `prisma/migrations/*_add_post_it/`. In deploy: `npx prisma migrate deploy`.
 
+### Documenti (S3 / CDN)
+Richiede variabili `S3_*` in `.env` (vedi `.env.example`): bucket **pubblico in lettura** (o dominio CDN) + `S3_PUBLIC_URL` senza slash finale. CORS sul bucket: consentire **PUT** e **HEAD** dall’origine del frontend.
+
+- `GET /api/documents` - `{ items, storageConfigured, maxBytes }` (metadati + link pubblici)
+- `POST /api/documents/presign` - body `{ originalName, contentType, sizeBytes }` → URL firmato per upload diretto al bucket
+- `POST /api/documents/commit` - body `{ storageKey, originalName, contentType, sizeBytes }` dopo PUT riuscito → crea riga DB con `publicUrl`
+- `DELETE /api/documents/:id` - Rimuove oggetto da storage e metadati (stessa famiglia)
+
+Migrazione: `prisma/migrations/*_family_documents/`.
+
 ### Shopping
 - `GET /api/shopping` - Lista della spesa
 - `POST /api/shopping` - Aggiungi prodotto

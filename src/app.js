@@ -8,6 +8,7 @@ import recipeRoutes from './routes/recipes.js';
 import deadlineRoutes from './routes/deadlines.js';
 import iotRoutes, { iotWebhookRouter } from './routes/iot.js';
 import boardRoutes from './routes/board.js';
+import documentsRoutes from './routes/documents.js';
 import { authenticateToken } from './middleware/auth.js';
 
 /**
@@ -46,6 +47,7 @@ export function createApp() {
   app.use('/api/iot', iotWebhookRouter);
   app.use('/api/iot', authenticateToken, iotRoutes);
   app.use('/api/board', authenticateToken, boardRoutes);
+  app.use('/api/documents', authenticateToken, documentsRoutes);
 
   app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });

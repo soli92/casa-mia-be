@@ -69,6 +69,7 @@ model User {
   recipeViews       RecipeView[]
   notificationPrefs NotificationPreference[]
   postIts           PostIt[]
+  documentsUploaded FamilyDocument[]
 
   @@index([familyId])
 }
@@ -88,6 +89,26 @@ model Family {
   deadlines     Deadline[]
   iotDevices    IoTDevice[]
   postIts       PostIt[]
+  documents     FamilyDocument[]
+}
+
+/// Documenti familiari: file su object storage (S3 / R2) con URL pubblico CDN
+model FamilyDocument {
+  id           String   @id @default(cuid())
+  familyId     String
+  uploadedById String
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  storageKey   String   @unique
+  publicUrl    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  family     Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  uploadedBy User   @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
 }
 
 /// Post-it condivisi sulla lavagna della famiglia (posizione in % rispetto al contenitore)
