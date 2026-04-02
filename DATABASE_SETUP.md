@@ -72,15 +72,15 @@ Railway eseguirà automaticamente `prisma generate` durante il build.
 
 Su **Render** (e altri host **solo IPv4**) la connessione **diretta** `db.<ref>.supabase.co:5432` spesso non risponde → *Can’t reach database server*.
 
-A volte anche **`db.<ref>.supabase.co:6543`** (transaction pooler) **non è raggiungibile** dal data center di Render: in quel caso usa per forza lo **Session pooler** (host `aws-0-*`), pensato proprio per backend persistenti su IPv4 ([docs Supabase](https://supabase.com/docs/guides/database/connecting-to-postgres)).
+A volte anche **`db.<ref>.supabase.co:6543`** (transaction pooler) **non è raggiungibile** dal data center di Render: in quel caso usa lo **Session pooler** (hostname tipo `aws-*-*.pooler.supabase.com`), pensato per backend persistenti su IPv4 ([docs Supabase](https://supabase.com/docs/guides/database/connecting-to-postgres)).
 
 Supabase espone **due** pooler con **regole fisse** (non mescolare host + utente → **`FATAL: Tenant or user not found`**):
 
 ### A) Session pooler — **prima scelta su Render**
 
-- Host: **`aws-0-<region>.pooler.supabase.com`** (es. `eu-west-1` → `aws-0-eu-west-1`)
-- Porta: **`5432`**
-- Utente: **`postgres.<project-ref>`** (punto + ref, come in dashboard)
+- Host: copialo **per intero** da **Connect → Session pool**: spesso `aws-0-<region>.pooler.supabase.com`, ma alcuni progetti usano **`aws-1-<region>`** (o altro prefisso). **Non indovinare** l’host dagli esempi online.
+- Porta: **`5432`** (come nella stringa della dashboard)
+- Utente: **`postgres.<project-ref>`** (punto + ref, come nella stringa)
 
 ```
 DATABASE_URL=postgresql://postgres.<PROJECT_REF>:[PASSWORD]@aws-0-<REGION>.pooler.supabase.com:5432/postgres?sslmode=require
@@ -107,9 +107,13 @@ Se vedi *Can’t reach … :6543*, passa alla **A)**.
 
 ### Errore `FATAL: Tenant or user not found`
 
-**Host + utente incoerenti**: es. `postgres.<ref>` su `db.*:6543`, oppure solo `postgres` su `aws-0-*.pooler.supabase.com` (senza la porta giusta). Usa la coppia **A** (session) o **B** (transaction) sopra, oppure incolla dal **Connect** senza modifiche manuali.
+1. **Utente + host della stessa scheda Connect** — Non mischiare utente Session con host Transaction (o il contrario). Incolla **una sola** URI generata da Supabase e correggi solo `pgbouncer=true` / `sslmode` se serve.
+2. **Host pooler sbagliato** — Se usi `aws-0-eu-west-1` ma il tuo progetto è su **`aws-1-eu-west-1`** (o altro), il pooler risponde *Tenant or user not found*. Apri **Connect → Session pool** e copia **hostname e porta** esatti.
+3. **Password nell’URL** — Caratteri come `@ # % : /` nella password vanno **percent-encodati**; altrimenti l’utente risulta troncato e il pooler non trova il tenant.
+4. **Render** — Evita spazi o a capo nella variabile `DATABASE_URL`. Se la password contiene `$`, in alcuni contesti va escapata; in dashboard Render di solito il valore è letterale.
+5. **Log di avvio** — Il backend in produzione stampa una riga `🗄️ DB target: host:port (user: …)` con eventuale avviso se utente e host sembrano incoerenti. Per disattivare: `LOG_DATABASE_TARGET=0`.
 
-Controlla anche: **password** con caratteri speciali → percent-encoding nell’URL; progetto **in pausa** su free tier.
+Controlla anche: progetto **in pausa** su free tier.
 
 ## 📝 Note
 
