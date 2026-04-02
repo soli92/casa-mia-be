@@ -4,8 +4,9 @@ services:
     env: node
     region: frankfurt
     plan: free
+    # `prisma generate` in build; `migrate deploy` allo start (DB da env Render, idempotente).
     buildCommand: npm install && npm run build
-    startCommand: node src/index.js
+    startCommand: npm run prisma:migrate && npm run start
     envVars:
       # Su Render usa il Connection Pooler Supabase (porta 6543) + ?pgbouncer=true — vedi DATABASE_SETUP.md
       # Non committare password: imposta DATABASE_URL nella dashboard Render (o Secret).
