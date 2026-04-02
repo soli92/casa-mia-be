@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 
-const ACCESS_TOKEN_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
-const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-change-this';
+const accessSecret = () => process.env.JWT_SECRET || 'your-secret-key-change-this';
+const refreshSecret = () => process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-change-this';
 
 const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY = '7d';
@@ -14,7 +14,7 @@ export const generateAccessToken = (user) => {
       familyId: user.familyId,
       role: user.role,
     },
-    ACCESS_TOKEN_SECRET,
+    accessSecret(),
     { expiresIn: ACCESS_TOKEN_EXPIRY }
   );
 };
@@ -26,23 +26,23 @@ export const generateRefreshToken = (user) => {
       email: user.email,
       familyId: user.familyId,
     },
-    REFRESH_TOKEN_SECRET,
+    refreshSecret(),
     { expiresIn: REFRESH_TOKEN_EXPIRY }
   );
 };
 
 export const verifyAccessToken = (token) => {
   try {
-    return jwt.verify(token, ACCESS_TOKEN_SECRET);
-  } catch (error) {
+    return jwt.verify(token, accessSecret());
+  } catch {
     return null;
   }
 };
 
 export const verifyRefreshToken = (token) => {
   try {
-    return jwt.verify(token, REFRESH_TOKEN_SECRET);
-  } catch (error) {
+    return jwt.verify(token, refreshSecret());
+  } catch {
     return null;
   }
 };

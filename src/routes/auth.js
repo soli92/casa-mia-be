@@ -108,6 +108,34 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Profilo utente corrente (Bearer access token)
+router.get('/me', authenticateToken, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: { family: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Utente non trovato' });
+    }
+
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        familyId: user.familyId,
+      },
+      family: user.family,
+    });
+  } catch (error) {
+    console.error('Me error:', error);
+    res.status(500).json({ error: 'Errore nel recupero del profilo' });
+  }
+});
+
 // Refresh token
 router.post('/refresh', async (req, res) => {
   try {

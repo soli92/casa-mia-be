@@ -2,7 +2,7 @@
 
 ## ✅ Database già configurato su Supabase!
 
-Lo schema è stato creato e popolato con dati di esempio.
+Lo schema è stato creato; gli account si ottengono tramite **registrazione** (`POST /api/auth/register` o schermata **Registrati** del frontend), non tramite utenti demo fissi.
 
 ## 📊 Tabelle create:
 
@@ -17,29 +17,11 @@ Lo schema è stato creato e popolato con dati di esempio.
 - **IoTDevice** - Dispositivi smart home
 - **IoTEvent** - Log eventi dispositivi IoT
 
-## 🔑 Credenziali di test
+## 🔑 Primo accesso
 
-Sono stati creati **2 utenti di esempio**:
-
-### Admin:
-- **Email**: `mario@rossi.com`
-- **Password**: `demo123`
-- **Ruolo**: ADMIN
-
-### Member:
-- **Email**: `lucia@rossi.com`
-- **Password**: `demo123`
-- **Ruolo**: MEMBER
-
-Entrambi appartengono alla famiglia "**Famiglia Rossi**".
-
-## 📦 Dati di esempio inclusi:
-
-- ✅ 5 prodotti nella lista della spesa
-- ✅ 5 prodotti in dispensa (con scadenze)
-- ✅ 2 ricette
-- ✅ 4 scadenze (bollette, abbonamenti)
-- ✅ 3 dispositivi IoT
+1. Avvia il backend con `DATABASE_URL` valida e migrazioni applicate.
+2. Dal frontend, **Registrati**: viene creata la famiglia e il primo utente (**ADMIN**).
+3. Altri membri: `POST /api/auth/add-member` (solo admin autenticato) oppure flusso dedicato in UI se presente.
 
 ## 🔧 Come collegare il backend
 

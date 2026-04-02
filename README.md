@@ -29,6 +29,20 @@ npx prisma migrate dev
 npm run dev
 ```
 
+## 🧪 Test
+
+```bash
+npm test          # Vitest (JWT, middleware auth, health HTTP)
+npm run test:watch
+```
+
+I test usano **supertest** sull’app Express (`createApp()` in `src/app.js`) senza avviare il server né richiedere database per `/health`. Variabili JWT nei test: vedi `tests/jwt.test.js`.
+
+## 🏗️ Struttura runtime
+
+- `src/app.js` — factory `createApp()` (middleware, route, `/health`); caricamento env con `import 'dotenv/config'` così le variabili sono disponibili prima dei moduli che le leggono.
+- `src/index.js` — HTTP server, WebSocket, cron, `listen`.
+
 ## 🔐 Environment Variables
 
 ```
@@ -50,10 +64,11 @@ Backend deployato su: https://casa-mia-be.onrender.com
 ## 🌐 API Endpoints
 
 ### Auth
-- `POST /api/auth/register` - Registrazione utente
+- `POST /api/auth/register` - Registrazione utente (famiglia + admin)
 - `POST /api/auth/login` - Login
-- `POST /api/auth/refresh` - Refresh token
-- `GET /api/auth/me` - Profilo utente
+- `POST /api/auth/refresh` - Nuovi access/refresh token
+- `GET /api/auth/me` - Profilo utente (Bearer access token)
+- `POST /api/auth/add-member` - Aggiungi membro (solo admin, Bearer)
 
 ### Shopping
 - `GET /api/shopping` - Lista della spesa
@@ -88,9 +103,10 @@ Backend deployato su: https://casa-mia-be.onrender.com
 
 ## 🔌 WebSocket
 
-Connetti a `ws://localhost:3001` per ricevere aggiornamenti IoT in tempo reale.
+Il server espone **WebSocket nativo** (`ws`) sullo stesso HTTP server, path **`/ws`** (es. `ws://localhost:3001/ws`). Il frontend può usare `WebSocket` nel browser o un client compatibile; `socket.io-client` non è intercambiabile senza adapter.
 
-Eventi:
+Eventi (dopo messaggio `auth` con token JWT):
+
 - `device:status` - Cambio stato dispositivo
 - `device:connected` - Nuovo dispositivo connesso
 
