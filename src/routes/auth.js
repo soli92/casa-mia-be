@@ -120,6 +120,27 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Membri della stessa famiglia (nessuna password; tutti gli utenti autenticati)
+router.get('/members', authenticateToken, async (req, res) => {
+  try {
+    const members = await prisma.user.findMany({
+      where: { familyId: req.user.familyId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        createdAt: true,
+      },
+      orderBy: [{ role: 'asc' }, { name: 'asc' }],
+    });
+    res.json(members);
+  } catch (error) {
+    console.error('Members list error:', error);
+    res.status(500).json({ error: 'Errore nel recupero dei membri' });
+  }
+});
+
 // Profilo utente corrente (Bearer access token)
 router.get('/me', authenticateToken, async (req, res) => {
   try {

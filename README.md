@@ -76,6 +76,7 @@ Se il deploy falliva con **P3005**, ora `npm run prisma:migrate` esegue un basel
 - `POST /api/auth/login` - Login
 - `POST /api/auth/refresh` - Nuovi access/refresh token
 - `GET /api/auth/me` - Profilo utente + oggetto `family` (Bearer)
+- `GET /api/auth/members` - Elenco membri del nucleo (`id`, `email`, `name`, `role`, `createdAt`) (Bearer)
 - `PATCH /api/auth/family` - Rinomina famiglia (solo admin, body `{ "name": "..." }`)
 - `POST /api/auth/add-member` - Aggiungi membro (solo admin, Bearer)
 
