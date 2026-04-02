@@ -64,7 +64,7 @@ jobs:
 
 Assicurati che tutte queste variabili siano configurate su Render:
 
-- ✅ `DATABASE_URL` - URL del database PostgreSQL
+- ✅ `DATABASE_URL` - PostgreSQL; con **Supabase su Render** usa il **pooler** (porta 6543) + `?pgbouncer=true`, vedi `DATABASE_SETUP.md`
 - ✅ `JWT_SECRET` - Secret per JWT access token
 - ✅ `JWT_REFRESH_SECRET` - Secret per JWT refresh token
 - ✅ `NODE_ENV` - `production`

@@ -7,8 +7,10 @@ services:
     buildCommand: npm install && npm run build
     startCommand: node src/index.js
     envVars:
+      # Su Render usa il Connection Pooler Supabase (porta 6543) + ?pgbouncer=true — vedi DATABASE_SETUP.md
+      # Non committare password: imposta DATABASE_URL nella dashboard Render (o Secret).
       - key: DATABASE_URL
-        value: postgresql://postgres.lljicnlehbrbuvbgtqzo:Solisolisoli92!@aws-0-eu-central-1.pooler.supabase.com:6543/postgres
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET

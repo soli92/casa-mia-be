@@ -29,7 +29,7 @@ Lo schema è stato creato; gli account si ottengono tramite **registrazione** (`
    - Vai su [Supabase Dashboard](https://supabase.com/dashboard)
    - Seleziona il tuo progetto
    - Settings → Database → Connection string
-   - Copia la stringa tipo: `postgresql://postgres:[PASSWORD]@[PROJECT_REF].supabase.co:5432/postgres`
+   - Copia la stringa URI: host **`db.<project-ref>.supabase.co`** (porta 5432, utente `postgres`)
 
 2. **Configura il backend**:
    ```bash
@@ -63,10 +63,25 @@ Questo apre un'interfaccia grafica per esplorare e modificare i dati.
 Quando deployi su Railway, imposta come variabile d'ambiente:
 
 ```
-DATABASE_URL=postgresql://postgres:[PASSWORD]@[PROJECT_REF].supabase.co:5432/postgres
+DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres
 ```
 
 Railway eseguirà automaticamente `prisma generate` durante il build.
+
+## ☁️ Deploy su Render + Supabase (errore “Can’t reach database server”)
+
+L’host **`db.<ref>.supabase.co:5432`** spesso è raggiungibile solo via **IPv6**. **Render** (e altri provider IPv4-only) non riesce a connettersi → Prisma segnala *Can’t reach database server*.
+
+**Soluzione:** in Dashboard Supabase → **Project Settings** → **Database** → **Connection string**, scegli **Transaction pooler** (host tipo `aws-0-<region>.pooler.supabase.com`, porta **6543**, utente spesso `postgres.<project-ref>`). Imposta su Render:
+
+```
+DATABASE_URL=postgresql://postgres.<PROJECT_REF>:[PASSWORD]@aws-0-<REGION>.pooler.supabase.com:6543/postgres?pgbouncer=true
+```
+
+(`<REGION>` deve coincidere con la regione del progetto, es. `eu-central-1`.)
+
+- **Migrazioni** (`prisma migrate deploy`): eseguile da locale (o CI) con la URI **diretta** `db.*:5432` se il pooler non supporta tutti i comandi di migrazione.
+- Il build su Render usa solo `prisma generate` (nessuna connessione al DB).
 
 ## 📝 Note
 
