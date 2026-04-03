@@ -1,6 +1,6 @@
 # AGENTS.md — contesto per assistenti AI
 
-**Aggiornato:** 2026-04-03
+**Aggiornato:** 2026-04-04
 
 ## Progetto
 
@@ -8,9 +8,9 @@ Backend **Express** (ESM), **Prisma** + PostgreSQL, JWT access/refresh, WebSocke
 
 ## Checklist
 
-1. **Env** — `cp .env.example .env`; `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `FRONTEND_URL`. Per documenti: `S3_BUCKET`, chiavi, opz. `S3_ENDPOINT` / `S3_REGION` / `S3_FORCE_PATH_STYLE` (vedi `.env.example`).
+1. **Env** — `cp .env.example .env`; `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `FRONTEND_URL`. Per documenti: `S3_BUCKET`, chiavi, opz. `S3_ENDPOINT` / `S3_REGION` / `S3_FORCE_PATH_STYLE` (vedi `.env.example`). Per push scadenze: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (`npx web-push generate-vapid-keys`); opz. `TZ=Europe/Rome`.
 2. **DB** — `npx prisma migrate dev` in locale; `npm run prisma:migrate` in deploy. Dopo pull: verificare migration `document_folders` se usi documenti.
-3. **Prima di PR** — `npm test` (JWT, auth middleware, health, `documentStorage`, route `documents` mockate); con DB: smoke login/register; se tocchi documenti, prova lista/presign con storage configurato.
+3. **Prima di PR** — `npm test` (JWT, auth middleware, health, `documentStorage`, route `documents` e `push` mockate); con DB: smoke login/register; se tocchi documenti, prova lista/presign con storage configurato.
 4. **Non committare** `.env` con segreti reali (né chiavi S3).
 
 ## Comandi
@@ -24,7 +24,8 @@ Backend **Express** (ESM), **Prisma** + PostgreSQL, JWT access/refresh, WebSocke
 - `src/utils/jwt.js` — secret letti da `process.env` a ogni uso (test-friendly)
 - `src/routes/documents.js` — cartelle CRUD, presign/commit, `access-url`, delete
 - `src/utils/documentStorage.js` — presign PUT/GET, `HEAD`, delete; config senza obbligo di `S3_PUBLIC_URL`
-- `tests/documentStorage.test.js` · `tests/documents.routes.test.js`
+- `tests/documentStorage.test.js` · `tests/documents.routes.test.js` · `tests/push.routes.test.js`
+- `src/routes/push.js` · `src/services/deadlinePushDigest.js`
 - `prisma/schema.prisma` · `README.md` · `DATABASE_SETUP.md`
 
 ## Regole

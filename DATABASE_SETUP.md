@@ -16,6 +16,7 @@ Lo schema è stato creato; gli account si ottengono tramite **registrazione** (`
 - **NotificationPreference** - Preferenze notifiche scadenze
 - **IoTDevice** - Dispositivi smart home
 - **IoTEvent** - Log eventi dispositivi IoT
+- **PushSubscription** - Endpoint Web Push per utente (notifiche scadenze); migrazione `*_push_subscriptions`
 
 ## 🔑 Primo accesso
 
@@ -134,7 +135,7 @@ npx prisma migrate resolve --applied "20260202140000_add_post_it"
 npx prisma migrate deploy
 ```
 
-**Database nuovo e vuoto:** nessun `resolve` — `migrate deploy` applica tutte le migration in ordine (tra le altre: `init_pre_postit`, `add_post_it`, `family_invite_code`, `family_documents`, `document_folders` per cartelle documenti e `publicUrl` opzionale).
+**Database nuovo e vuoto:** nessun `resolve` — `migrate deploy` applica tutte le migration in ordine (tra le altre: `init_pre_postit`, `add_post_it`, `family_invite_code`, `family_documents`, `document_folders`, `push_subscriptions` per notifiche push scadenze).
 
 ## 📝 Note
 

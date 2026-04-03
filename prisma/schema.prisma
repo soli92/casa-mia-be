@@ -70,8 +70,26 @@ model User {
   notificationPrefs NotificationPreference[]
   postIts           PostIt[]
   documentsUploaded FamilyDocument[]
+  pushSubscriptions PushSubscription[]
 
   @@index([familyId])
+}
+
+/// Endpoint Web Push per notifiche scadenze (un record per browser/dispositivo)
+model PushSubscription {
+  id             String   @id @default(cuid())
+  userId         String
+  endpoint       String   @unique
+  p256dh         String
+  auth           String
+  /// Ultimo giorno (YYYY-MM-DD UTC) in cui è stato inviato il digest giornaliero
+  lastDigestDate String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Family {

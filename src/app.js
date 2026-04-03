@@ -9,6 +9,7 @@ import deadlineRoutes from './routes/deadlines.js';
 import iotRoutes, { iotWebhookRouter } from './routes/iot.js';
 import boardRoutes from './routes/board.js';
 import documentsRoutes from './routes/documents.js';
+import pushRoutes, { pushVapidPublicKeyHandler } from './routes/push.js';
 import { authenticateToken } from './middleware/auth.js';
 
 /**
@@ -48,6 +49,9 @@ export function createApp() {
   app.use('/api/iot', authenticateToken, iotRoutes);
   app.use('/api/board', authenticateToken, boardRoutes);
   app.use('/api/documents', authenticateToken, documentsRoutes);
+
+  app.get('/api/push/vapid-public-key', pushVapidPublicKeyHandler);
+  app.use('/api/push', authenticateToken, pushRoutes);
 
   app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });

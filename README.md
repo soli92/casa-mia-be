@@ -13,6 +13,7 @@ Backend Node.js/Express per l'applicazione di gestione domestica "Casa Mia".
 - **Lavagna condivisa** — post-it (`PostIt`) con posizione %, colori, CRUD sotto `/api/board`
 - **Documenti famiglia** — file su object storage (S3/R2): **cartelle** (`DocumentFolder`), metadati + `storageKey`; upload con **PUT** presigned; **lettura in app** con `GET` presigned (bucket **privato** ok; `S3_PUBLIC_URL` opzionale / legacy)
 - **Hub IoT** con WebSocket per dispositivi smart home in tempo reale
+- **Web Push (scadenze)** — VAPID, sottoscrizioni in `PushSubscription`, digest giornaliero (cron) con scadenze scadute o nei prossimi 7 giorni
 
 ## 🛠️ Tech Stack
 
@@ -57,6 +58,8 @@ FRONTEND_URL=http://localhost:3000
 ```
 
 Per **CORS**, `FRONTEND_URL` può elencare più origini separate da **virgola** (es. URL produzione + preview Vercel). Deve coincidere con l’origine del browser (`NEXT_PUBLIC_API_URL` sul frontend deve puntare a questo backend).
+
+**Web Push (opzionale):** `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (`npx web-push generate-vapid-keys`), `VAPID_SUBJECT=mailto:…`. Senza chiavi, `GET /api/push/vapid-public-key` risponde 503 e il digest non invia nulla. Opzionale: `TZ=Europe/Rome` per il cron digest (ore 9 nel fuso del processo). Vedi `.env.example`.
 
 ## 🚀 CI/CD
 
@@ -127,10 +130,18 @@ Migrazione Prisma: `prisma/migrations/*_add_post_it/`. In deploy: `npx prisma mi
 
 ### Deadlines
 - `GET /api/deadlines` - Tutte le scadenze
-- `GET /api/deadlines/upcoming` - Scadenze imminenti
+- `GET /api/deadlines/upcoming` - Prossimi 7 giorni (non pagate)
+- `GET /api/deadlines/overdue` - Scadute e non pagate
 - `POST /api/deadlines` - Aggiungi scadenza
 - `PATCH /api/deadlines/:id` - Aggiorna
 - `DELETE /api/deadlines/:id` - Rimuovi
+
+### Push (notifiche browser)
+- `GET /api/push/vapid-public-key` - Chiave pubblica VAPID (pubblico, nessun Bearer)
+- `POST /api/push/subscribe` - Registra `PushSubscription` (Bearer, body `{ endpoint, keys: { p256dh, auth } }`)
+- `DELETE /api/push/subscribe` - Body `{ endpoint }`; rimuove la sottoscrizione dell’utente corrente
+
+Il digest giornaliero (`src/services/deadlinePushDigest.js`, schedulato in `src/index.js`) invia al più una notifica al giorno per endpoint con riepilogo scadenze non pagate (scadute o entro 7 giorni).
 
 ### IoT
 - `GET /api/iot/devices` - Lista dispositivi
