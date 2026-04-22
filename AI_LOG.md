@@ -8,7 +8,7 @@ Memoria di sviluppo AI-assisted. Annotazioni sui prompt, decisioni e pattern eme
 
 Backend **Express** (ESM) per **Casa Mia**: autenticazione JWT, famiglie, dispensa, ricette, shopping, IoT, scadenze, lavagna post-it, documenti su S3, **Web Push** per notifiche. Persistenza **Prisma** + Postgres (spesso Supabase/Render nel flusso deploy).
 
-**Stack AI usato (inferito)**: Cursor / agenti esterni — **evidenza diretta parziale**: merge `e7af317 Merge pull request #1 from soli92/cursor/current-issues-346f` (branch nominato `cursor/...`). Resto inferenza da messaggi molto descrittivi e batch di fix CI.
+**Stack AI usato (inferito; aggiornato 2026-04-22)**: **Cursor** — merge `e7af317` da `soli92/cursor/current-issues-346f`. `AGENTS.md` + `.cursor/rules/agents-context.mdc` (pattern ecosistema). Nessun SDK LLM in `package.json` per il runtime API. Messaggi CI/CD densi (`2baba27`…`9516eba`) compatibili con pair programming assistito.
 
 **Periodo di sviluppo**: 2026-03-22 (`98a17a3` Initial commit) → 2026-04-03 (`3dc0c72` feat push Web).
 
@@ -33,9 +33,14 @@ Backend **Express** (ESM) per **Casa Mia**: autenticazione JWT, famiglie, dispen
 - **Express** come server unico con WebSocket.
 - **Prisma** come ORM; uso di `type: "module"` dopo iterazioni (`83082ae`, `5c04cdb`).
 
-**Prompt chiave usati**: > [TODO da compilare manualmente]
+**Prompt chiave usati**
 
-**Lezioni apprese**: > [TODO da compilare manualmente]
+> **Prompt [inferito]**: "Genera backend Express con Prisma: auth JWT, route pantry/shopping/recipes/IoT, WebSocket, README e .env.example."
+> *Evidenza*: catena `Add X routes` / `Add Prisma schema`, commit `98a17a3`–`fabd46a`.
+
+**Lezioni apprese**
+
+- Alternanza **ESM** / rimozione `type: "module"` mostra attrito con tooling legacy (`83082ae`, `5c04cdb`, `cb18f32`).
 
 ### Fase 2 — CI/CD GitHub Actions e stabilizzazione deploy
 
@@ -51,9 +56,15 @@ Backend **Express** (ESM) per **Casa Mia**: autenticazione JWT, famiglie, dispen
 
 - CI su GitHub Actions come gate prima del deploy.
 
-**Prompt chiave usati**: > [TODO da compilare manualmente]
+**Prompt chiave usati**
 
-**Lezioni apprese**: > [TODO da compilare manualmente]
+> **Prompt [inferito]**: "Aggiungi workflow GitHub Actions per CI/CD su Render, correggi YAML e semplifica step non necessari."
+> *Evidenza*: `2baba27`, `8e2ef96`, `a9e007b`, `9516eba`.
+
+**Lezioni apprese**
+
+- **YAML CI** fragile: errori di sintassi bloccano tutta la pipeline (`8e2ef96`).
+- Emoji nei messaggi commit non sostituiscono test verdi sui secrets (`9516eba`).
 
 ### Fase 3 — Refactor sicurezza JWT, CRUD deadlines, merge Cursor
 
@@ -69,9 +80,15 @@ Backend **Express** (ESM) per **Casa Mia**: autenticazione JWT, famiglie, dispen
 
 - **App factory** e `GET /auth/me` (`b5f2019`) per testabilità e boundary auth.
 
-**Prompt chiave usati**: > [TODO da compilare manualmente]
+**Prompt chiave usati**
 
-**Lezioni apprese**: > [TODO da compilare manualmente]
+> **Prompt [inferito]**: "Refactor JWT lazy env, route deadlines CRUD, poi fix post-merge su schema deadlines, auth e webhook IoT (branch cursor/current-issues)."
+> *Evidenza*: `fd876ff`, `7941c5c`, `e7af317`, `2b3a36e`, `b5f2019`.
+
+**Lezioni apprese**
+
+- **Merge da branch Cursor** richiede passata dedicata su **route ordering** e allineamento schema (`2b3a36e`).
+- `createApp()` + supertest migliorano testabilità rispetto a monolite avviato solo in `index.js` (`b5f2019`).
 
 ### Fase 4 — Pooler Supabase/Render, Prisma migrate deploy, documenti e Push
 
@@ -87,9 +104,16 @@ Backend **Express** (ESM) per **Casa Mia**: autenticazione JWT, famiglie, dispen
 
 - Baseline migration e script `prisma-migrate-with-baseline` per DB legacy (`63edce9`, `cbb6d6e`).
 
-**Prompt chiave usati**: > [TODO da compilare manualmente]
+**Prompt chiave usati**
 
-**Lezioni apprese**: > [TODO da compilare manualmente]
+> **Prompt [inferito]**: "Documenta pooler Supabase/Render e `DATABASE_URL`, aggiungi migrate deploy con baseline, feature documenti S3 presigned e Web Push con test."
+> *Evidenza*: `76abb1f`–`9484e24`, `cbb6d6e`, `0bdf707`, `3dc0c72`.
+
+**Lezioni apprese**
+
+- **P3005 / DB legacy**: serve baseline esplicita prima di `migrate deploy` (`63edce9`, `cbb6d6e`).
+- **Pooler**: distinguere session vs transaction e host `aws-0` vs `6543` è critico per reachability (`76abb1f`, `62e9d99`).
+- **CORS multi-origine** va allineato a più frontend/staging (`e97fe95`).
 
 ---
 
@@ -147,10 +171,29 @@ Backend **Express** (ESM) per **Casa Mia**: autenticazione JWT, famiglie, dispen
 
 ## Punti aperti / note per il futuro
 
-> [TODO da compilare manualmente: roadmap notifiche, limiti quota push, ambienti staging]
+- **grep `TODO|FIXME|HACK|XXX`** in `src/` e `tests/`: nessun match significativo oltre eventuali stringhe in lockfile (escluso `package-lock.json` in questa passata).
+- **Web Push / VAPID**: rotazione chiavi e policy retention notifiche non codificate nel repo (solo `.env.example` / `AGENTS.md`).
+- **Debito tecnico inferito**: molte route in un solo `index.js` storico — monitorare complessità ciclomatica e copertura test per nuovi moduli.
+- **Debito tecnico inferito**: documentazione DB ampia (`DATABASE_SETUP.md`, commenti in commit) può divergere da dashboard Render se non aggiornata ad ogni cambio pooler.
+- **Debito tecnico inferito**: ambienti staging non descritti come infra-as-code unico (Render + Supabase manuali).
 
 ---
 
-> **Nota metodologica**: questo file è stato generato retroattivamente analizzando la history del repo. Le sezioni con `> [TODO da compilare manualmente]` richiedono la memoria del developer e non possono essere inferite dalla sola analisi automatica. Integra progressivamente con annotazioni manuali mentre lavori alle prossime fasi del progetto.
+> **Nota metodologica**: sezioni inferite aggiornate il 2026-04-22; incrociare con issue tracker per roadmap notifiche.
+
+---
+
+## Metodologia compilazione automatica
+
+Completamento autonomo il **22 aprile 2026** su:
+
+- **59** commit
+- **~9** file di contesto (`package.json`, `prisma/schema.prisma`, `AGENTS.md`, `render.yaml`, `DATABASE_SETUP.md`, `.github/workflows`, script migrate)
+- **0** TODO/FIXME rilevanti in `src/` dal grep workspace
+
+**Punti di minore confidenza:**
+
+- Prompt fase 1 generici (scaffold Express) senza file prompt salvati.
+- Dettaglio “quanti test” per push: dedotto da commit, non da report coverage allegato.
 
 ---
