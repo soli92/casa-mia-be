@@ -26,7 +26,7 @@ Backend **Express** (ESM), **Prisma** + PostgreSQL, JWT access/refresh, WebSocke
 - `src/utils/documentStorage.js` — presign PUT/GET, `HEAD`, delete; config senza obbligo di `S3_PUBLIC_URL`
 - `tests/documentStorage.test.js` · `tests/documents.routes.test.js` · `tests/push.routes.test.js`
 - `src/routes/push.js` · `src/services/deadlinePushDigest.js`
-- `prisma/schema.prisma` · `README.md` · `DATABASE_SETUP.md`
+- `prisma/schema.prisma` · `README.md` · `DATABASE_SETUP.md` · `AI_LOG.md` (memoria sviluppo AI-assisted)
 
 ## Regole
 
