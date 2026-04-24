@@ -34,3 +34,10 @@ Backend **Express** (ESM), **Prisma** + PostgreSQL, JWT access/refresh, WebSocke
 - Coerenza payload auth con il frontend: `accessToken` / `refreshToken` (non `token`); login/register includono `family`.
 - Dati condivisi: filtrare sempre per `req.user.familyId` (`PostIt` / `board`, **documenti e cartelle**, shopping, pantry, ecc.).
 - Documenti: chiavi oggetto sotto `families/{familyId}/`; validare `folderId` sulla stessa famiglia; non esporre `publicUrl` nelle liste API (solo legacy in DB).
+
+## Known edge cases & gotchas
+
+- **Pooler Supabase: session vs transaction**: per la reachability DB in deploy bisogna distinguere endpoint session e transaction; nel log è esplicitata la differenza tra host `aws-0...` e porta `6543`. Se invertiti, la connessione può fallire in modo poco chiaro (fix `76abb1f`, `62e9d99`).
+- **Prisma migrate su DB legacy (P3005)**: su database già popolati `prisma migrate deploy` richiede baseline esplicita prima delle migrazioni. Nel repo è documentato il workaround con `prisma-migrate-with-baseline` (fix `63edce9`, `cbb6d6e`).
+- **CORS multi-origine per frontend/staging**: la configurazione CORS deve considerare più origini contemporaneamente, altrimenti registrazione/auth possono rompersi in ambienti non principali (fix `e97fe95`).
+- **Post-merge da branch Cursor: route ordering/schema**: dopo merge ampi è emerso un edge case su ordinamento route e allineamento schema (deadlines/auth/webhook IoT), che richiede verifica dedicata e non solo conflitti Git risolti (fix `2b3a36e`).
