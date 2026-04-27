@@ -2,6 +2,8 @@
 
 Backend Node.js/Express per l'applicazione di gestione domestica "Casa Mia".
 
+Contesto per assistenti AI: **[`AGENTS.md`](./AGENTS.md)**. Il backend compare in [Soli Prof RAG `CORPUS_REPOS`](https://github.com/soli92/soli-prof); un `push` può attivare re-ingest lato Soli (webhook `push`, HMAC) senza toccare `npm test` in questo repository.
+
 ## 🚀 Features
 
 - **Autenticazione JWT** con refresh token

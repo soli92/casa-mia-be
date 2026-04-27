@@ -1,6 +1,6 @@
 # AGENTS.md — contesto per assistenti AI
 
-**Aggiornato:** 2026-04-04
+**Aggiornato:** 2026-04-27
 
 ## Progetto
 
@@ -27,6 +27,10 @@ Backend **Express** (ESM), **Prisma** + PostgreSQL, JWT access/refresh, WebSocke
 - `tests/documentStorage.test.js` · `tests/documents.routes.test.js` · `tests/push.routes.test.js`
 - `src/routes/push.js` · `src/services/deadlinePushDigest.js`
 - `prisma/schema.prisma` · `README.md` · `DATABASE_SETUP.md` · `AI_LOG.md` (memoria sviluppo AI-assisted)
+
+### Integrazione Soli Prof (RAG / webhook)
+
+Questo repository è in **`CORPUS_REPOS`** su [soli-prof](https://github.com/soli92/soli-prof). Un webhook **`push`** verso `https://soli-prof.vercel.app/api/webhooks/github` può attivare re-ingest (HMAC). I test `npm test` del backend **non** dipendono da quel flusso. [soli-prof `AGENTS.md`](https://github.com/soli92/soli-prof/blob/main/AGENTS.md).
 
 ## Regole
 
