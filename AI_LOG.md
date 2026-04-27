@@ -197,3 +197,4 @@ Completamento autonomo il **22 aprile 2026** su:
 - Dettaglio “quanti test” per push: dedotto da commit, non da report coverage allegato.
 
 ---
+
